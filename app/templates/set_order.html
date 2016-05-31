@@ -1,0 +1,1859 @@
+{% extends "layout.html" %} {% block script %}
+<script type="text/javascript" src="/static/Guriddo_jqGrid_JS_5.1.0/js/i18n/grid.locale-cn.js"></script>
+<script type="text/javascript" src="/static/Guriddo_jqGrid_JS_5.1.0/js/jquery.jqGrid.min.js"></script>
+<link rel="stylesheet" href="/static/Guriddo_jqGrid_JS_5.1.0/css/ui.jqgrid-bootstrap.css">
+<!-- <link rel="stylesheet" href="/static/jquery-ui-1.11.4.custom/jquery-ui.min.css">
+<script type="text/javascript" src="/static/jquery-ui-1.11.4.custom/jquery-ui.min.js"></script> -->
+<link rel="stylesheet" href="/static/bootstrap-treeview-1.2.0/dist/bootstrap-treeview.min.css">
+<script type="text/javascript" src="/static/bootstrap-treeview-1.2.0/dist/bootstrap-treeview.min.js"></script>
+<!-- Latest compiled and minified CSS -->
+<link rel="stylesheet" href="/static/bootstrap-select-1.10.0/dist/css/bootstrap-select.min.css">
+<!-- Latest compiled and minified JavaScript -->
+<script src="/static/bootstrap-select-1.10.0/dist/js/bootstrap-select.min.js"></script>
+<!-- (Optional) Latest compiled and minified JavaScript translation files -->
+<script src="/static/bootstrap-select-1.10.0/dist/js/i18n/defaults-zh_CN.js"></script>
+{#<script src="/static/mousetrap-master/mousetrap.min.js"></script> #}
+<script src="/static/KeyboardJS-master/dist/keyboard.min.js"></script>
+<script>
+$.jgrid.defaults.width = 780;
+$.jgrid.defaults.responsive = true;
+$.jgrid.defaults.styleUI = 'Bootstrap';
+// Mousetrap.bind('4', function() {
+//     console.log('4');
+// });
+// Mousetrap.bind("?", function() {
+//     console.log('show shortcuts!');
+// });
+// Mousetrap.bind('esc', function() {
+//     console.log('escape');
+// }, 'keyup');
+// keyboardJS.bind('a', function(e) {
+//   console.log('a is pressed');
+// });
+
+var machine_type;
+var machine_num;
+var modify_name;
+var comein_modify;
+var select_order_id;
+{% for i in range(1, 8) %}
+keyboardJS.bind('alt + ' + {{i}}, function(e) {
+    change_machine('rude', {{i}});
+});
+{% endfor %}
+{% for i in range(1, 9) %}
+keyboardJS.bind('ctrl + ' + {{i}}, function(e) {
+    change_machine('fine', {{i}});
+});
+{% endfor %}
+var change_machine = function(type, num){
+    machine_type = type;
+    machine_num = num;
+    console.log(machine_type +' and ' + machine_num + ' is pressed');
+};
+{% for name, key in machine_key_dict.items() %}
+{% if key %}
+keyboardJS.bind('{{key}}', function(e) {
+    if(machine_type && machine_num){ 
+        $("#" + machine_type + "_process" + machine_num + "_select").selectpicker("val", '{{name}}');
+        machine = '{{name}}';
+        client = $("#client_select_div button")[0].title;
+        if(machine_type=='rude'){
+            rude_process_price_change(machine_num, machine, client);
+        }
+        if(machine_type=='fine'){
+            fine_process_price_change(machine_num, machine, client);
+        }
+        calc_one_part_process_price();
+    };
+});
+{% endif %}
+{% endfor %}
+
+// keyboardJS.bind('c', function(e) {
+//     if(machine_type && machine_num){ 
+//         $("#" + machine_type + "_process" + machine_num + "_select").selectpicker("val", "车床");
+//     };
+// });
+keyboardJS.pause();
+// keyboardJS.resume();
+</script>
+<style>
+.ui-jqgrid {
+    margin: 0 auto
+}
+</style>
+<style>
+.bootstrap-select:not([class*=col-]):not([class*=form-control]):not(.input-group-btn) {
+    width: 100px;
+}
+
+.table th,
+.table td,
+.table tr {
+    text-align: center;
+    vertical-align: middle;
+    /*height:38px;*/
+}
+
+.table>tbody>tr>td {
+    vertical-align: middle;
+}
+</style>
+{% endblock %} {% block body %}
+<div class="row">
+    <div class="col-md-3">
+        <div id="tree"></div>
+        <div>
+            <button style="margin: 10px" id="project_add" type="button" class="btn btn-primary" data-toggle="modal" data-target="#addProjectModal">添加项目</button>
+            <button style="margin: 10px" id="project_remove" type="button" class="btn btn-danger">删除项目</button>
+        </div>
+        <div>
+            <button style="margin: 10px" id="order_add" type="button" class="btn btn-primary">增加订单</button>
+            <button style="margin: 10px" id="order_remove" type="button" class="btn btn-danger">删除订单</button>
+        </div>    </div>
+    <div class="col-md-8">
+        <div id="client_select_div" style="margin:20px">
+            <h2 class="demoHeaders">选择客户</h2>
+            <select class="selectpicker" id="client_select">
+                {% for client in clients %}
+                <option>{{ client }}</option> {% endfor %}
+            </select>
+            <button style="margin: 10px; float:right" id="make_excel" type="button" content="生成excel" class="btn btn-primary">
+            <a id='downloadlink' href="#" style="color: white">生成excel</a>
+            
+            </button>
+        </div>
+        <div style="margin-left:20px">
+            <table id="jqGrid"></table>
+            <div id="jqGridPager"></div>
+        </div>
+        <!-- <button style="margin:20px" type="button" class="btn btn-primary" data-toggle="modal" data-target="#exampleModal" data-whatever="@mdo">Open modal for @mdo</button> -->
+    </div>
+    <div class="col-md-1"></div>
+</div>
+
+<!-- 增加项目 -->
+<div class="modal fade" id="addProjectModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
+  <div class="modal-dialog modal-sm" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+        <h4 class="modal-title" id="myModalLabel">增加项目</h4>
+      </div>
+      <div class="modal-body">
+        <input type="text" style="width: 100%" id="addProjectName">
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-default" data-dismiss="modal">取消</button>
+        <button id="addProjectSubmit" type="button" class="btn btn-primary">提交</button>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- 删除项目 -->
+<div class="modal fade" id="removeProjectModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
+  <div class="modal-dialog modal-sm" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+        <h4 class="modal-title" id="myModalLabel">删除项目</h4>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-default" data-dismiss="modal">取消</button>
+        <button id="removeProjectVerify" type="button" class="btn btn-danger">删除</button>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- 增加订单 -->
+<div class="modal fade" id="addOrderModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
+  <div class="modal-dialog modal-sm" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+        <h4 class="modal-title" id="myModalLabel">增加订单</h4>
+      </div>
+      <div class="modal-body">
+        <input type="text" style="width: 100%" id="addOrderName">
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-default" data-dismiss="modal">取消</button>
+        <button id="addOrderSubmit" type="button" class="btn btn-primary">提交</button>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- 删除订单 -->
+<div class="modal fade" id="removeOrderodal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
+  <div class="modal-dialog modal-sm" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+        <h4 class="modal-title" id="myModalLabel">删除订单</h4>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-default" data-dismiss="modal">取消</button>
+        <button id="removeOrderVerify" type="button" class="btn btn-danger">删除</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="exampleModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel">
+    <div class="modal-dialog" role="document" style="width:1100px">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                <h4 class="modal-title" id="exampleModalLabel">New message</h4>
+            </div>
+            <div class="modal-body">
+                <form>
+                    <div>
+                        <table class="table table-bordered">
+                            <thead>
+                                <tr>
+                                    <th>序号</th>
+                                    <th colspan="2">图纸信息</th>
+                                    <th colspan="2">材料成本</th>
+                                    <th colspan="5">加工成本</th>
+                                    <th>总计</th>
+                                    <th>备注</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td rowspan="17">1</td>
+                                    <td rowspan="4">工件名称</td>
+                                    <td rowspan="4">
+                                        <input type="text" id="name" style="width:100px">
+                                    </td>
+                                    <td rowspan="4">材料</td>
+                                    <td id="material_select_td" rowspan="4">
+                                        <select class="selectpicker" id="material_select">
+                                            <option> </option>
+                                            {% for material in materials %}
+                                            <option>{{ material }}</option> {% endfor %}
+                                        </select>
+                                    </td>
+                                    <td>加工类型</td>
+                                    <td>加工流程</td>
+                                    <td>耗时</td>
+                                    <td>单位成本</td>
+                                    <td>单项总计</td>
+                                    <td rowspan="17" id="total_price"></td>
+                                    <td rowspan="17">
+                                        <textarea name="commit_textarea" id="commit_textarea" cols="4" rows="30"></textarea>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td rowspan="7">粗加工</td>
+                                    <td id="rude_process1_td" style="padding: 0">
+                                        <select class="selectpicker" id="rude_process1_select">
+                                            <option> </option>
+                                            {% for machine in machines %}
+                                            <option>{{ machine }}</option> {% endfor %}
+                                        </select>
+                                    </td>
+                                    <td style="padding: 0">
+                                        <input type="text" id="rude_process1_time_input" oninput="rude_process_time_change(1, $('#rude_process1_td button')[0].title)" style="width:40px ">
+                                    </td>
+                                    <td id="rude_process1_price_td"></td>
+                                    <td id="rude_process1_total_price_td"></td>
+                                </tr>
+                                <tr>
+                                    <td id="rude_process2_td" style="padding: 0 ">
+                                        <select class="selectpicker" id="rude_process2_select">
+                                            <option> </option>
+                                            {% for machine in machines %}
+                                            <option>{{ machine }}</option> {% endfor %}
+                                        </select>
+                                    </td>
+                                    <td style="padding: 0 ">
+                                        <input type="text" id="rude_process2_time_input" oninput="rude_process_time_change(2, $('#rude_process2_td button')[0].title)" style="width:40px">
+                                    </td>
+                                    <td id="rude_process2_price_td"></td>
+                                    <td id="rude_process2_total_price_td"></td>
+                                </tr>
+                                <tr>
+                                    <td id="rude_process3_td" style="padding: 0">
+                                        <select class="selectpicker" id="rude_process3_select">
+                                            <option> </option>
+                                            {% for machine in machines %}
+                                            <option>{{ machine }}</option> {% endfor %}
+                                        </select>
+                                    </td>
+                                    <td style="padding: 0">
+                                        <input type="text" id="rude_process3_time_input" oninput="rude_process_time_change(3, $('#rude_process3_td button')[0].title)" style="width:40px">
+                                    </td>
+                                    <td id="rude_process3_price_td"></td>
+                                    <td id="rude_process3_total_price_td"></td>
+                                </tr>
+                                <tr>
+                                    <td rowspan="3">图号</td>
+                                    <td rowspan="3">
+                                        <input type="text" id="drawing_number" style="width:100px">
+                                    </td>
+                                    <td rowspan="3">数量</td>
+                                    <td rowspan="3">
+                                        <input type="text" id="number" oninput="calc_total_part_price()" style="width:100px">
+                                    </td>
+                                    <td id="rude_process4_td" style="padding: 0">
+                                        <select class="selectpicker" id="rude_process4_select">
+                                            <option> </option>
+                                            {% for machine in machines %}
+                                            <option>{{ machine }}</option> {% endfor %}
+                                        </select>
+                                    </td>
+                                    <td style="padding: 0">
+                                        <input type="text" id="rude_process4_time_input" oninput="rude_process_time_change(4, $('#rude_process4_td button')[0].title)" style="width:40px">
+                                    </td>
+                                    <td id="rude_process4_price_td"></td>
+                                    <td id="rude_process4_total_price_td"></td>
+                                </tr>
+                                <tr>
+                                    <td id="rude_process5_td" style="padding: 0">
+                                        <select class="selectpicker" id="rude_process5_select">
+                                            <option> </option>
+                                            {% for machine in machines %}
+                                            <option>{{ machine }}</option> {% endfor %}
+                                        </select>
+                                    </td>
+                                    <td style="padding: 0">
+                                        <input type="text" id="rude_process5_time_input" oninput="rude_process_time_change(5, $('#rude_process5_td button')[0].title)" style="width:40px">
+                                    </td>
+                                    <td id="rude_process5_price_td"></td>
+                                    <td id="rude_process5_total_price_td"></td>
+                                </tr>
+                                <tr>
+                                    <td id="rude_process6_td" style="padding: 0">
+                                        <select class="selectpicker" id="rude_process6_select">
+                                            <option> </option>
+                                            {% for machine in machines %}
+                                            <option>{{ machine }}</option> {% endfor %}
+                                        </select>
+                                    </td>
+                                    <td style="padding: 0">
+                                        <input type="text" id="rude_process6_time_input" oninput="rude_process_time_change(6, $('#rude_process6_td button')[0].title)" style="width:40px">
+                                    </td>
+                                    <td id="rude_process6_price_td"></td>
+                                    <td id="rude_process6_total_price_td"></td>
+                                </tr>
+                                <tr>
+                                    <td rowspan="3">精度要求</td>
+                                    <td id="measure_select_td" rowspan="3">
+                                        <select class="selectpicker" id="measure_select">
+                                            <option> </option>
+                                            {% for measure in measures %}
+                                            <option>{{ measure }}</option> {% endfor %}
+                                        </select>
+                                    </td>
+                                    <td rowspan="3">下料尺寸</td>
+                                    <td rowspan="3">
+                                        <div id="size_group1" style="display: none;">
+                                            <div id="mark1" style="display:inline;"></div>
+                                            <div style="display:inline;">
+                                                <input type="text" name="size1" id="size1" oninput="weightchange($('#material_select_td button')[0].title, $('#material_shape_td button')[0].title)" style="width:50px">
+                                            </div>
+                                        </div>
+                                        <div id="size_group2" style="display: none;">
+                                            <div id="mark2" style="display:inline;"></div>
+                                            <div style="display:inline;">
+                                                <input type="text" id="size2" oninput="weightchange($('#material_select_td button')[0].title, $('#material_shape_td button')[0].title)" style="width:50px">
+                                            </div>
+                                        </div>
+                                        <div id="size_group3" style="display: none;">
+                                            <div id="mark3" style="display:inline;"></div>
+                                            <div style="display:inline;">
+                                                <input type="text" id="size3" oninput="weightchange($('#material_select_td button')[0].title, $('#material_shape_td button')[0].title)" style="width:50px">
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td id="rude_process7_td" style="padding: 0">
+                                        <select class="selectpicker" id="rude_process7_select">
+                                            <option> </option>
+                                            {% for machine in machines %}
+                                            <option>{{ machine }}</option> {% endfor %}
+                                        </select>
+                                    </td>
+                                    <td style="padding: 0">
+                                        <input type="text" id="rude_process7_time_input" oninput="rude_process_time_change(7, $('#rude_process7_td button')[0].title)" style="width:40px">
+                                    </td>
+                                    <td id="rude_process7_price_td"></td>
+                                    <td id="rude_process7_total_price_td"></td>
+                                </tr>
+                                <tr>
+                                    <td rowspan="8">精加工</td>
+                                    <td id="fine_process1_td" style="padding: 0">
+                                        <select class="selectpicker" id="fine_process1_select">
+                                            <option> </option>
+                                            {% for machine in machines %}
+                                            <option>{{ machine }}</option> {% endfor %}
+                                        </select>
+                                    </td>
+                                    <td style="padding: 0">
+                                        <input type="text" id="fine_process1_time_input" oninput="fine_process_time_change(1, $('#fine_process1_td button')[0].title)" style="width:40px">
+                                    </td>
+                                    <td id="fine_process1_price_td"></td>
+                                    <td id="fine_process1_total_price_td"></td>
+                                </tr>
+                                <tr>
+                                    <td id="fine_process2_td" style="padding: 0">
+                                        <select class="selectpicker" id="fine_process2_select">
+                                            <option> </option>
+                                            {% for machine in machines %}
+                                            <option>{{ machine }}</option> {% endfor %}
+                                        </select>
+                                    </td>
+                                    <td style="padding: 0">
+                                        <input type="text" id="fine_process2_time_input" oninput="fine_process_time_change(2, $('#fine_process2_td button')[0].title)" style="width:40px">
+                                    </td>
+                                    <td id="fine_process2_price_td"></td>
+                                    <td id="fine_process2_total_price_td"></td>
+                                </tr>
+                                <tr>
+                                    <td rowspan="3">工件类型</td>
+                                    <td id="part_type_select_td" rowspan="3">
+                                        <select class="selectpicker" id="part_type_select">
+                                            <option> </option>
+                                            {% for part_type in part_types %}
+                                            <option>{{ part_type }}</option> {% endfor %}
+                                        </select>
+                                    </td>
+                                    <td rowspan="3">理论重量</td>
+                                    <td rowspan="3" id="material_weight"></td>
+                                    <td id="fine_process3_td" style="padding: 0">
+                                        <select class="selectpicker" id="fine_process3_select">
+                                            <option> </option>
+                                            {% for machine in machines %}
+                                            <option>{{ machine }}</option> {% endfor %}
+                                        </select>
+                                    </td>
+                                    <td style="padding: 0">
+                                        <input type="text" id="fine_process3_time_input" oninput="fine_process_time_change(3, $('#fine_process3_td button')[0].title)" style="width:40px">
+                                    </td>
+                                    <td id="fine_process3_price_td"></td>
+                                    <td id="fine_process3_total_price_td"></td>
+                                </tr>
+                                <tr>
+                                    <td id="fine_process4_td" style="padding: 0">
+                                        <select class="selectpicker" id="fine_process4_select">
+                                            <option> </option>
+                                            {% for machine in machines %}
+                                            <option>{{ machine }}</option> {% endfor %}
+                                        </select>
+                                    </td>
+                                    <td style="padding: 0">
+                                        <input type="text" id="fine_process4_time_input" oninput="fine_process_time_change(4, $('#fine_process4_td button')[0].title)" style="width:40px">
+                                    </td>
+                                    <td id="fine_process4_price_td"></td>
+                                    <td id="fine_process4_total_price_td"></td>
+                                </tr>
+                                <tr>
+                                    <td id="fine_process5_td" style="padding: 0">
+                                        <select class="selectpicker" id="fine_process5_select">
+                                            <option> </option>
+                                            {% for machine in machines %}
+                                            <option>{{ machine }}</option> {% endfor %}
+                                        </select>
+                                    </td>
+                                    <td style="padding: 0">
+                                        <input type="text" id="fine_process5_time_input" oninput="fine_process_time_change(5, $('#fine_process5_td button')[0].title)" style="width:40px">
+                                    </td>
+                                    <td id="fine_process5_price_td"></td>
+                                    <td id="fine_process5_total_price_td"></td>
+                                </tr>
+                                <tr>
+                                    <td rowspan="3">材料类型</td>
+                                    <td id="material_shape_td" rowspan="3">
+                                        <select class="selectpicker" id="material_shape_select">
+                                            <option> </option>
+                                            {% for material_shape in material_shapes %}
+                                            <option>{{ material_shape }}</option> {% endfor %}
+                                        </select>
+                                    </td>
+                                    <td rowspan="2">材料单价</td>
+                                    <td id="material_price" rowspan="2"></td>
+                                    <td id="fine_process6_td" style="padding: 0">
+                                        <select class="selectpicker" id="fine_process6_select">
+                                            <option> </option>
+                                            {% for machine in machines %}
+                                            <option>{{ machine }}</option> {% endfor %}
+                                        </select>
+                                    </td>
+                                    <td style="padding: 0">
+                                        <input type="text" id="fine_process6_time_input" oninput="fine_process_time_change(6, $('#fine_process6_td button')[0].title)" style="width:40px">
+                                    </td>
+                                    <td id="fine_process6_price_td"></td>
+                                    <td id="fine_process6_total_price_td"></td>
+                                </tr>
+                                <tr>
+                                    <td id="fine_process7_td" style="padding: 0">
+                                        <select class="selectpicker" id="fine_process7_select">
+                                            <option> </option>
+                                            {% for machine in machines %}
+                                            <option>{{ machine }}</option> {% endfor %}
+                                        </select>
+                                    </td>
+                                    <td style="padding: 0">
+                                        <input type="text" id="fine_process7_time_input" oninput="fine_process_time_change(7, $('#fine_process7_td button')[0].title)" style="width:40px">
+                                    </td>
+                                    <td id="fine_process7_price_td"></td>
+                                    <td id="fine_process7_total_price_td"></td>
+                                </tr>
+                                <tr>
+                                    <td rowspan="2">材料金额</td>
+                                    <td rowspan="2" id="material_totoal_price"></td>
+                                    <td id="fine_process8_td" style="padding: 0">
+                                        <select class="selectpicker" id="fine_process8_select">
+                                            <option> </option>
+                                            {% for machine in machines %}
+                                            <option>{{ machine }}</option> {% endfor %}
+                                        </select>
+                                    </td>
+                                    <td style="padding: 0">
+                                        <input type="text" id="fine_process8_time_input" oninput="fine_process_time_change(8, $('#fine_process8_td button')[0].title)" style="width:40px">
+                                    </td>
+                                    <td id="fine_process8_price_td"></td>
+                                    <td id="fine_process8_total_price_td"></td>
+                                </tr>
+                                <tr>
+                                    <td> </td>
+                                    <td> </td>
+                                    <td colspan="4">零件加工费单价（含热处理费）</td>
+                                    <td id="one_part_process_price"></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" id="init" class="btn btn-default" style="float:left">初始化</button>
+                <button type="button" class="btn btn-default" style="float:left">复制</button>
+                <button type="button" class="btn btn-default" data-dismiss="modal" style="text-align:right">取消</button>
+                <button type="button" id="modify" class="btn btn-primary" style="text-align:right">修改</button>
+                <button type="button" id="submit" class="btn btn-primary" style="text-align:right">提交</button>
+            </div>
+        </div>
+    </div>
+</div>
+<script type="text/javascript">
+var get_tree = function(){
+    var tree_data;
+    $.ajax({
+        url: '{{ url_for("make_order.get_project_tree") }}',
+        type: "POST",
+        async: false,
+        data: {},
+        success: function(object) {
+            tree_data = object['tree'];
+        },
+        error: function() {
+            alert("Ajax错误，请联系技术人员");
+        }
+    });
+    return tree_data;
+};
+$('#tree').treeview({
+    data: get_tree(),
+    onNodeSelected: function(event, node){
+        tree_on_select(node);
+    }
+});
+var tree_on_select = function(node){
+        console.log(node.text);
+        $.ajax({
+            url: '{{ url_for("make_order.order_exist") }}',
+            type: "POST",
+            async: false,
+            data: { name: $('#tree').treeview('getSelected')[0].text},
+            success: function(object) {
+                if(object.result == true){
+                    select_order_id = object.result_id;
+                    $("#client_select").selectpicker("val", object.client_name);
+                    $("#jqGrid").jqGrid('setGridParam', {
+                        datatype: 'json',
+                        postData: {
+                            'order_id': select_order_id
+                        }
+                    }).trigger("reloadGrid", {
+                        fromServer: true,
+                        page: 1
+                    }); 
+                    $('#downloadlink').attr('href', object.downloadlink);
+
+                }else{
+                    select_order_id = undefined;               }
+            },
+            error: function() {
+                alert("Ajax错误，请联系技术人员");
+            }
+        });
+        console.log(select_order_id);
+
+        // $.ajax({
+        //     url: '{{ url_for("make_order.set_order_client") }}',
+        //     type: "POST",
+        //     async: false,
+        //     data: {
+        //         'order_id': select_order_id,
+        //         'client': $("#client_select_div button")[0].title
+        //     },
+        //     success: function(object) {
+        //         if(object.result == true){
+        //             select_order_id = object.result_id;
+        //         }else{
+        //             select_order_id = undefined;               }
+        //     },
+        //     error: function() {
+        //         alert("Ajax错误，请联系技术人员");
+        //     }
+        // });
+
+}; 
+$('#tree').treeview('collapseAll', { silent: true });
+
+$('#project_remove').on('click', function() {
+    var result;
+    if($('#tree').treeview('getSelected').length > 0){
+        $.ajax({
+            url: '{{ url_for("make_order.project_exist") }}',
+            type: "POST",
+            async: false,
+            data: { name: $('#tree').treeview('getSelected')[0].text},
+            success: function(object) {
+                if(object.result == true){
+                    result = true;
+                }else{
+                    result = false;
+                    alert("请选择一个项目执行删除项目");                }
+            },
+            error: function() {
+                alert("Ajax错误，请联系技术人员");
+            }
+        });
+        if(result){
+             $('#removeProjectModal').modal();
+
+        }
+    }else{
+        alert("请选择一个项目执行删除");
+    }
+});
+
+$('#order_remove').on('click', function() {
+    var result;
+    if($('#tree').treeview('getSelected').length > 0){
+        $.ajax({
+            url: '{{ url_for("make_order.order_exist") }}',
+            type: "POST",
+            async: false,
+            data: { name: $('#tree').treeview('getSelected')[0].text},
+            success: function(object) {
+                if(object.result == true){
+                    result = true;
+                }else{
+                    result = false;
+                    alert("请选择一个订单执行删除订单");                }
+            },
+            error: function() {
+                alert("Ajax错误，请联系技术人员");
+            }
+        });
+        if(result){
+            $('#removeOrderodal').modal();
+        }
+        
+    }else{
+        alert("请选择一个订单执行删除");
+    }
+});
+
+$("#removeOrderVerify").on('click', function() {
+    if($('#tree').treeview('getSelected').length > 0){
+        $.ajax({
+            url: '{{ url_for("make_order.remove_order") }}',
+            type: "POST",
+            async: false,
+            data: { name: $('#tree').treeview('getSelected')[0].text },
+            success: function(object) {
+                if(object.result == true){
+                    $('#tree').treeview({
+                        data: get_tree(),
+    onNodeSelected: function(event, node){
+        tree_on_select(node);
+    }
+    
+                    });
+                    $('#tree').treeview('collapseAll', { silent: true });
+                    $('#removeOrderodal').modal('hide');
+                }else{
+                    alert(object.message);
+                }
+            },
+            error: function() {
+                alert("Ajax错误，请联系技术人员");
+            }
+        });
+    }else{
+        alert("请选择一个项目执行删除");
+    }
+});
+{#
+//make_excel
+// $("#make_excel").on('click', function() {
+//         $.ajax({
+//             url: '{{ url_for("make_order.make_xlsx") }}',
+//             type: "POST",
+//             async: false,
+//             data: { order_id: select_order_id },
+//             success: function(object) {
+//                 if(object.result == true){
+                    
+//                 }else{
+                  
+//                 }
+
+//             },
+//             error: function() {
+//                 alert("Ajax错误，请联系技术人员");
+//             }
+//         });
+// });
+#}
+
+$("#order_add").on('click', function() {
+    if($('#tree').treeview('getSelected').length > 0){
+        $.ajax({
+            url: '{{ url_for("make_order.project_exist") }}',
+            type: "POST",
+            async: false,
+            data: { name: $('#tree').treeview('getSelected')[0].text},
+            success: function(object) {
+                if(object.result == true){
+                    $('#addOrderModal').modal();
+                }else{
+                    alert("请选择一个项目执行添加订单");
+                }
+            },
+            error: function() {
+                alert("Ajax错误，请联系技术人员");
+            }
+        });
+
+    }else{
+        alert("请选择一个项目执行添加订单");
+    }
+});
+$("#removeProjectVerify").on('click', function() {
+    if($('#tree').treeview('getSelected').length > 0){
+        $.ajax({
+            url: '{{ url_for("make_order.remove_project") }}',
+            type: "POST",
+            async: false,
+            data: { name: $('#tree').treeview('getSelected')[0].text},
+            success: function(object) {
+                if(object.result == true){
+                    $('#tree').treeview({
+                        data: get_tree()    ,
+    onNodeSelected: function(event, node){
+        tree_on_select(node);
+    }
+
+                    });
+                    $('#tree').treeview('collapseAll', { silent: true });
+                    $('#removeProjectModal').modal('hide');
+                }else{
+                    alert(object.message);
+                }
+            },
+            error: function() {
+                alert("Ajax错误，请联系技术人员");
+            }
+        });
+    }else{
+        alert("请选择一个项目执行删除");
+    }
+});
+
+
+$("#addProjectSubmit").on('click', function() {
+    $.ajax({
+        url: '{{ url_for("make_order.add_project") }}',
+        type: "POST",
+        async: false,
+        data: { name: $('#addProjectName').val() },
+        success: function(object) {
+            if(object.result == true){
+                $('#tree').treeview({
+                    data: get_tree(),
+    onNodeSelected: function(event, node){
+        tree_on_select(node);
+    }
+    
+                });
+                $('#tree').treeview('collapseAll', { silent: true });
+                $('#addProjectName').val('');
+                $('#addProjectModal').modal('hide');
+            }else{
+                alert(object.message);
+            }
+        },
+        error: function() {
+            alert("Ajax错误，请联系技术人员");
+        }
+    });
+});
+
+$("#addOrderSubmit").on('click', function() {
+    $.ajax({
+        url: '{{ url_for("make_order.add_order") }}',
+        type: "POST",
+        async: false,
+        data: { 
+            project: $('#tree').treeview('getSelected')[0].text,
+            name: $('#addOrderName').val() 
+        },
+        success: function(object) {
+            if(object.result == true){
+                $('#tree').treeview({
+                    data: get_tree(),
+    onNodeSelected: function(event, node){
+        tree_on_select(node);
+    }
+    
+                });
+                $('#tree').treeview('collapseAll', { silent: true });
+                $('#addOrderName').val('');
+                $('#addOrderModal').modal('hide');
+            }else{
+                alert(object.message);
+            }
+        },
+        error: function() {
+            alert("Ajax错误，请联系技术人员");
+        }
+    });
+});
+// 粗加工1选择改变
+$('#rude_process1_select').on('changed.bs.select', function(e) {
+    select_rude_process1(e.currentTarget.value);
+});
+var select_rude_process1 = function(e_peocess){
+    machine = e_peocess;
+    client = $("#client_select_div button")[0].title;
+    rude_process_price_change(1, machine, client);
+    calc_one_part_process_price();
+};
+$('#rude_process2_select').on('changed.bs.select', function(e) {
+    select_rude_process2(e.currentTarget.value);
+});
+var select_rude_process2 = function(e_peocess){
+    machine = e_peocess;
+    client = $("#client_select_div button")[0].title;
+    rude_process_price_change(2, machine, client);
+    calc_one_part_process_price();
+};
+$('#rude_process3_select').on('changed.bs.select', function(e) {
+    select_rude_process3(e.currentTarget.value);
+});
+var select_rude_process3 = function(e_peocess){
+    machine = e_peocess;
+    client = $("#client_select_div button")[0].title;
+    rude_process_price_change(3, machine, client);
+    calc_one_part_process_price();
+};
+$('#rude_process4_select').on('changed.bs.select', function(e) {
+    select_rude_process4(e.currentTarget.value);
+});
+var select_rude_process4 = function(e_peocess){
+    machine = e_peocess;
+    client = $("#client_select_div button")[0].title;
+    rude_process_price_change(4, machine, client);
+    calc_one_part_process_price();
+};
+$('#rude_process5_select').on('changed.bs.select', function(e) {
+    select_rude_process5(e.currentTarget.value);
+});
+var select_rude_process5 = function(e_peocess){
+    machine = e_peocess;
+    client = $("#client_select_div button")[0].title;
+    rude_process_price_change(5, machine, client);
+    calc_one_part_process_price();
+};
+$('#rude_process6_select').on('changed.bs.select', function(e) {
+    select_rude_process6(e.currentTarget.value);
+});
+var select_rude_process6 = function(e_peocess){
+    machine = e_peocess;
+    client = $("#client_select_div button")[0].title;
+    rude_process_price_change(6, machine, client);
+    calc_one_part_process_price();
+};
+$('#rude_process7_select').on('changed.bs.select', function(e) {
+    select_rude_process7(e.currentTarget.value);
+});
+var select_rude_process7 = function(e_peocess){
+    machine = e_peocess;
+    client = $("#client_select_div button")[0].title;
+    rude_process_price_change(7, machine, client);
+    calc_one_part_process_price();
+};
+// 改变工缴价格
+function rude_process_price_change(i, machine, client) {
+    var price;
+    $.ajax({
+        url: '{{ url_for("part.part_get_machine_price") }}',
+        type: "POST",
+        async: false,
+        data: {
+            "client": client,
+            "machine": machine
+        },
+        success: function(object) {
+            if (object.result == true)
+                price = object.price;
+        },
+        error: function() {
+            alert("Ajax错误，请联系技术人员");
+        }
+    })
+    if (price > 0) {
+        $("#rude_process" + i + "_price_td").text(price);
+        rude_process_time_change(i, machine);
+        return;
+    };
+    $("#rude_process" + i + "_price_td").text("");
+    rude_process_time_change(i, machine);
+};
+
+$('#fine_process1_select').on('changed.bs.select', function(e) {
+    select_fine_process1(e.currentTarget.value);
+});
+var select_fine_process1 = function(e_peocess){
+    machine = e_peocess;
+    client = $("#client_select_div button")[0].title;
+    fine_process_price_change(1, machine, client);
+    calc_one_part_process_price();
+};
+$('#fine_process2_select').on('changed.bs.select', function(e) {
+    select_fine_process2(e.currentTarget.value);
+});
+var select_fine_process2 = function(e_peocess){
+    machine = e_peocess;
+    client = $("#client_select_div button")[0].title;
+    fine_process_price_change(2, machine, client);
+    calc_one_part_process_price();
+};
+$('#fine_process3_select').on('changed.bs.select', function(e) {
+    select_fine_process3(e.currentTarget.value);
+});
+var select_fine_process3 = function(e_peocess){
+    machine = e_peocess;
+    client = $("#client_select_div button")[0].title;
+    fine_process_price_change(3, machine, client);
+    calc_one_part_process_price();
+};
+$('#fine_process4_select').on('changed.bs.select', function(e) {
+    select_fine_process4(e.currentTarget.value);
+});
+var select_fine_process4 = function(e_peocess){
+    machine = e_peocess;
+    client = $("#client_select_div button")[0].title;
+    fine_process_price_change(4, machine, client);
+    calc_one_part_process_price();
+};
+$('#fine_process5_select').on('changed.bs.select', function(e) {
+    select_fine_process5(e.currentTarget.value);
+});
+var select_fine_process5 = function(e_peocess){
+    machine = e_peocess;
+    client = $("#client_select_div button")[0].title;
+    fine_process_price_change(5, machine, client);
+    calc_one_part_process_price();
+};
+$('#fine_process6_select').on('changed.bs.select', function(e) {
+    select_fine_process6(e.currentTarget.value);
+});
+var select_fine_process6 = function(e_peocess){
+    machine = e_peocess;
+    client = $("#client_select_div button")[0].title;
+    fine_process_price_change(6, machine, client);
+    calc_one_part_process_price();
+};
+$('#fine_process7_select').on('changed.bs.select', function(e) {
+    select_fine_process7(e.currentTarget.value);
+});
+var select_fine_process7 = function(e_peocess){
+    machine = e_peocess;
+    client = $("#client_select_div button")[0].title;
+    fine_process_price_change(7, machine, client);
+    calc_one_part_process_price();
+};
+$('#fine_process8_select').on('changed.bs.select', function(e) {
+    select_fine_process8(e.currentTarget.value);
+});
+var select_fine_process8 = function(e_peocess){
+    machine = e_peocess;
+    client = $("#client_select_div button")[0].title;
+    fine_process_price_change(8, machine, client);
+    calc_one_part_process_price();
+};
+
+function fine_process_price_change(i, machine, client) {
+    var price;
+    $.ajax({
+        url: '{{ url_for("part.part_get_machine_price") }}',
+        type: "POST",
+        async: false,
+        data: {
+            "client": client,
+            "machine": machine
+        },
+        success: function(object) {
+            if (object.result == true)
+                price = object.price;
+        },
+        error: function() {
+            alert("Ajax错误，请联系技术人员");
+        }
+    })
+    if (price > 0) {
+        $("#fine_process" + i + "_price_td").text(price);
+        fine_process_time_change(i, machine);
+        return;
+    };
+    $("#fine_process" + i + "_price_td").text("");
+    fine_process_time_change(i, machine);
+};
+// 客户选择改变
+$('#client_select').on('changed.bs.select', function(e) {
+    material = $("#material_select_td button")[0].title;
+    client = e.currentTarget.value;
+    $.ajax({
+            url: '{{ url_for("make_order.set_order_client") }}',
+            type: "POST",
+            async: false,
+            data: {
+                'order_id': select_order_id,
+                'client': client
+            },
+            success: function(object) {
+                // if(object.result == true){
+                //     select_order_id = object.result_id;
+                // }else{
+                //     select_order_id = undefined;               }
+            },
+            error: function() {
+                alert("Ajax错误，请联系技术人员");
+            }
+        });
+    $("#jqGrid").jqGrid('setGridParam', {
+                        datatype: 'json',
+                        postData: {
+                            'order_id': select_order_id
+                        }
+                    }).trigger("reloadGrid", {
+                        fromServer: true,
+                        page: 1
+                    }); 
+
+
+    // change_material_price(material, client);
+    // for (var i = 1; i <= 7; i++) {
+    //     machine = $("#rude_process" + i + "_td button")[0].title;
+    //     rude_process_price_change(i, machine, client);
+    // };
+    // for (var i = 1; i <= 8; i++) {
+    //     fine_process_price_change(i, machine, client);
+    // };
+
+    // calc_one_part_process_price();
+});
+
+// 材料形状改变
+$('#material_shape_select').on('changed.bs.select', function(e) {
+    change_material_shape(e.currentTarget.value);
+});
+
+var change_material_shape = function(e_shape){
+    var shape = e_shape;
+    switch (e_shape) {
+        case "板材":
+            $("#mark1").text("L:");
+            $("#mark2").text("W:");
+            $("#mark3").text("H:");
+            $("#size_group1").show()
+            $("#size_group2").show()
+            $("#size_group3").show()
+            break;
+        case "管材":
+            $("#mark1").text("D:");
+            $("#mark2").text("d:");
+            $("#mark3").text("L:");
+            $("#size_group1").show()
+            $("#size_group2").show()
+            $("#size_group3").show()
+            break;
+        case "棒材":
+            $("#mark1").text("Φ:");
+            $("#mark2").text("L:");
+            $("#mark3").text("H:");
+            $("#size_group1").show()
+            $("#size_group2").show()
+            $("#size_group3").hide()
+            break;
+        default:
+            $("#size_group1").hide()
+            $("#size_group2").hide()
+            $("#size_group3").hide()
+            break;
+    }
+
+    var material = $("#material_select_td button")[0].title;
+    weightchange(material, shape);
+}
+
+// 材料选择改变
+$('#material_select').on('changed.bs.select', function(e) {
+    change_material(e.currentTarget.value);
+});
+
+var change_material = function(e_material){
+    material = e_material;
+    client = $("#client_select_div button")[0].title;
+    shape = $("#material_shape_td button")[0].title;
+    change_material_price(material, client);
+    weightchange(material, shape);
+};
+
+// 改变材料报价
+function change_material_price(material, client) {
+    $.ajax({
+        url: '{{ url_for("part.part_get_material_price") }}',
+        type: "POST",
+        async: false,
+        data: {
+            "client": client,
+            "material": material
+        },
+        success: function(object) {
+            if (object.result == true)
+                $("#material_price").text(object.price);
+            else
+                $("#material_price").text("");
+        },
+        error: function() {
+            alert("Ajax错误，请联系技术人员");
+        }
+    });
+    material_total_price_change();
+};
+// 计算重量
+function weightchange(material, shape) {
+    var v;
+    var weight;
+    var density;
+    $.ajax({
+        url: '{{ url_for("part.part_get_material_density") }}',
+        type: "POST",
+        async: false,
+        data: {
+            "material": material
+        },
+        success: function(object) {
+            if (object.result == true)
+                density = object.density;
+        },
+        error: function() {
+            alert("Ajax错误，请联系技术人员");
+        }
+    });
+    if (typeof(density) == "undefined" || density <= 0) {
+        $("#material_weight").text("");
+        return
+    }
+    var size1 = $("#size1").val();
+    var size2 = $("#size2").val();
+    var size3 = $("#size3").val();
+
+    switch (shape) {
+        case "板材":
+            if ((!isNaN(size1)) && (!isNaN(size2)) && (!isNaN(size3))) {
+                v = size1 * size2 * size3;
+            }
+            break;
+        case "管材":
+            if ((!isNaN(size1)) && (!isNaN(size2)) && (!isNaN(size3))) {
+                v = Math.PI * (size1 * size1 - size2 * size2) / 4 * size3;
+            }
+            break;
+        case "棒材":
+            if ((!isNaN(size1)) && (!isNaN(size2))) {
+                v = Math.PI * (size1 * size1) / 4 * size2;
+            }
+            break;
+        default:
+            $("#material_weight").text("");
+            return;
+            break;
+    }
+    if (v > 0) {
+        weight = density * v;
+        $("#material_weight").text(weight.toFixed(2));
+        material_total_price_change();
+        return;
+    }
+    $("#material_weight").text("");
+    material_total_price_change();
+};
+
+function material_total_price_change() {
+    var weight = $("#material_weight").text();
+    var price = $("#material_price").text();
+    $("#material_totoal_price").text((weight * price).toFixed(2));
+    calc_total_part_price();
+};
+
+function rude_process_time_change(i, machine) {
+    var price = $("#rude_process" + i + "_price_td").text();
+    var time = $("#rude_process" + i + "_time_input").val();
+    // var machine = $("#rude_process" + i + "_td button")[0].title;
+    if (machine.replace(/\s/g, "").length != 0) {
+        if ((!isNaN(price)) && (!isNaN(time))) {
+            $("#rude_process" + i + "_total_price_td").text((price * time).toFixed(2));
+        } else {
+            $("#rude_process" + i + "_total_price_td").text(0);
+        }
+        calc_one_part_process_price();
+        return;
+    }
+    $("#rude_process" + i + "_total_price_td").text("");
+    calc_one_part_process_price();
+};
+
+function fine_process_time_change(i, machine) {
+    var price = $("#fine_process" + i + "_price_td").text();
+    var time = $("#fine_process" + i + "_time_input").val();
+    // var machine = $("#fine_process" + i + "_td button")[0].title;
+    if (machine.replace(/\s/g, "").length != 0) {
+        if ((!isNaN(price)) && (!isNaN(time))) {
+            $("#fine_process" + i + "_total_price_td").text((price * time).toFixed(2));
+        } else {
+            $("#fine_process" + i + "_total_price_td").text(0);
+        }
+        calc_one_part_process_price();
+        return;
+    }
+    $("#fine_process" + i + "_total_price_td").text("");
+    calc_one_part_process_price();
+};
+
+function calc_one_part_process_price() {
+    var sum = Number(0.0);
+    for (var i = 1; i <= 7; i++) {
+        var price = $("#rude_process" + i + "_total_price_td").text();
+        if (!isNaN(price))
+            sum += Number(price);
+    }
+    for (var i = 1; i <= 8; i++) {
+        var price = $("#fine_process" + i + "_total_price_td").text();
+        if (!isNaN(price))
+            sum += Number(price);
+
+    }
+    $("#one_part_process_price").text(sum);
+    calc_total_part_price();
+};
+// 计算多个零件总价
+function calc_total_part_price() {
+    var number = $("#number").val();
+    var material_price = $("#material_totoal_price").text();
+    var process_price = $("#one_part_process_price").text();
+    if (!isNaN(number)) {
+        $("#total_price").text(((Number(material_price) + Number(process_price)) * number).toFixed(2));
+    }
+}
+</script>
+<script type="text/javascript">
+$(document).ready(function() {
+    $("#jqGrid").jqGrid({
+        url: '{{ url_for("make_order.part_getdata") }}',
+        // we set the changes to be made at part_type side using predefined word part_typeArray
+        editurl: 'clientArray',
+        datatype: "json",
+        postData: {
+            'order_id': undefined
+        },
+        colModel: [
+            // {
+            //     label: 'ID',
+            //     name: 'id',
+            //     width: 75,
+            //     // key: true,
+            //     editable: true,
+            //     editrules: {
+            //         required: true
+            //     }
+            // },
+            {
+                label: '零件名称',
+                name: 'name',
+                width: 75,
+                // key: true,
+                editable: true,
+                editrules: {
+                    required: true
+                }
+            }, {
+                label: '图号',
+                name: 'drawing_number',
+                width: 140,
+                editable: true // must set editable to true if you want to make the field editable
+            }, {
+                label: '数量',
+                name: 'number',
+                width: 140,
+                editable: true // must set editable to true if you want to make the field editable
+            }, {
+                label: '总价',
+                name: 'total_price',
+                width: 140,
+                editable: true, // must set editable to true if you want to make the field editable
+                sorttype: 'number',
+                formatter: 'number',
+                align: 'right'
+
+            }
+        ],
+        sortname: 'name',
+        sortorder: 'asc',
+        loadonce: true,
+        viewrecords: true,
+        height: 380,
+        rowNum: 10,
+        pager: "#jqGridPager",
+        viewrecords: true,
+        footerrow: true,
+        rownumbers: true, // show row numbers
+        userDataOnFooter: true // use the userData parameter of the JSON response to display data on footer
+    });
+
+    $('#jqGrid').navGrid('#jqGridPager',
+        // the buttons to appear on the toolbar of the grid
+        {
+            edit: false,
+            add: false,
+            del: true,
+            search: false,
+            refresh: false,
+            view: false,
+            position: "left",
+            cloneToTop: false
+                // reloadAfterSubmit: true
+        },
+        // options for the Edit Dialog
+        {}, {}, {
+            afterSubmit: function(data, postdata, oper) {
+                postdata.name = $("tr#" + postdata.id + " td")[1].title;
+                var result;
+                $.ajax({
+                    url: '{{ url_for("make_order.part_delete") }}',
+                    async: false,
+                    type: "POST",
+                    data: postdata,
+                    success: function(object) {
+                        if (object.result != true)
+                            result = [false, object.message]
+                        else
+                            result = [true, "", ""];
+                    },
+                    error: function() {
+                        result = [false, "Ajax错误，请联系技术人员"];
+                    }
+                });
+                return result;
+            },
+            errorTextFormat: function(data) {
+                return 'Error: ' + data.responseText
+            }
+        }
+    );
+    // edit custom button
+    $('#jqGrid').navButtonAdd('#jqGridPager', {
+        buttonicon: "glyphicon-edit",
+        title: "编辑零件",
+        caption: "",
+        position: "first",
+        onClickButton: editModel
+
+    });
+    // add custom button
+    $('#jqGrid').navButtonAdd('#jqGridPager', {
+        buttonicon: "glyphicon-plus",
+        title: "添加零件",
+        caption: "",
+        position: "first",
+        onClickButton: showModel
+
+    });
+
+
+    function showModel() {
+        $('#exampleModalLabel').text("新增零件");
+        $('#modify').hide();
+        $('#submit').show();
+        $('#exampleModal').modal();
+    };
+    function editModel() {
+        var id = $('#jqGrid').jqGrid('getGridParam','selrow');
+        if(id){
+            // alert($('.jqgrow#' + id + ' td')[1].title);
+            $('#exampleModalLabel').text("编辑零件");
+            modify_name = $('.jqgrow#' + id + ' td')[1].title;
+            $.ajax({
+                url: '{{ url_for("make_order.part_get_detail_data") }}',
+                type: "POST",
+                async: false,
+                data: {
+                    'modify_name': modify_name
+                },
+                success: function(object) {
+                    if (object.result == false) {
+                        alert(object.message);
+                    } else {
+                        // alert("请求成功");
+                        $('#name').val(object.name);
+                        $('#commit_textarea').val(object.commit);
+                        $('#drawing_number').val(object.drawing_number);
+                        if(object.measure){
+                            $("#measure_select").selectpicker("val", object.measure);
+                        }
+                        if(object.part_type){
+                            $("#part_type_select").selectpicker("val", object.part_type);
+                        }
+                        if(object.material_type){
+                            $("#material_shape_select").selectpicker("val", object.material_type);
+                        }
+                        change_material_shape(object.material_type);
+                        $('#size1').val(object.size1);
+                        $('#size2').val(object.size2);
+                        $('#size3').val(object.size3);
+                        if(object.material){
+                            $("#material_select").selectpicker("val", object.material);
+                        }
+                        change_material(object.material);
+                        $('#number').val(object.number);
+                        if(object.rude_process1){
+                            $("#rude_process1_select").selectpicker("val", object.rude_process1);
+                            $('#rude_process1_time_input').val(object.rude_process1_time);
+                            select_rude_process1(object.rude_process1);
+                        }
+                        if(object.rude_process2){
+                            $("#rude_process2_select").selectpicker("val", object.rude_process2);
+                            $('#rude_process2_time_input').val(object.rude_process2_time);
+                            select_rude_process2(object.rude_process2);
+                        }
+                        if(object.rude_process3){
+                            $("#rude_process3_select").selectpicker("val", object.rude_process3);
+                            $('#rude_process3_time_input').val(object.rude_process3_time);
+                            select_rude_process3(object.rude_process3);
+                        }
+                        if(object.rude_process4){
+                            $("#rude_process4_select").selectpicker("val", object.rude_process4);
+                            $('#rude_process4_time_input').val(object.rude_process4_time);
+                            select_rude_process4(object.rude_process4);
+                        }
+                        if(object.rude_process5){
+                            $("#rude_process5_select").selectpicker("val", object.rude_process5);
+                            $('#rude_process5_time_input').val(object.rude_process5_time);
+                            select_rude_process5(object.rude_process5);
+                        }
+                        if(object.rude_process6){
+                            $("#rude_process6_select").selectpicker("val", object.rude_process6);
+                            $('#rude_process6_time_input').val(object.rude_process6_time);
+                            select_rude_process6(object.rude_process6);
+                        }
+                        if(object.rude_process7){
+                            $("#rude_process7_select").selectpicker("val", object.rude_process7);
+                            $('#rude_process7_time_input').val(object.rude_process7_time);
+                            select_rude_process7(object.rude_process7);
+                        }
+
+                        if(object.fine_process1){
+                            $("#fine_process1_select").selectpicker("val", object.fine_process1);
+                            $('#fine_process1_time_input').val(object.fine_process1_time);
+                            select_fine_process1(object.fine_process1);
+                        }
+                        if(object.fine_process2){
+                            $("#fine_process2_select").selectpicker("val", object.fine_process2);
+                            $('#fine_process2_time_input').val(object.fine_process2_time);
+                            select_fine_process2(object.fine_process2);
+                        }
+                        if(object.fine_process3){
+                            $("#fine_process3_select").selectpicker("val", object.fine_process3);
+                            $('#fine_process3_time_input').val(object.fine_process3_time);
+                            select_fine_process3(object.fine_process3);
+                        }
+                        if(object.fine_process4){
+                            $("#fine_process4_select").selectpicker("val", object.fine_process4);
+                            $('#fine_process4_time_input').val(object.fine_process4_time);
+                            select_fine_process4(object.fine_process4);
+                        }
+                        if(object.fine_process5){
+                            $("#fine_process5_select").selectpicker("val", object.fine_process5);
+                            $('#fine_process5_time_input').val(object.fine_process5_time);
+                            select_fine_process5(object.fine_process5);
+                        }
+                        if(object.fine_process6){
+                            $("#fine_process6_select").selectpicker("val", object.fine_process6);
+                            $('#fine_process6_time_input').val(object.fine_process6_time);
+                            select_fine_process6(object.fine_process6);
+                        }
+                        if(object.fine_process7){
+                            $("#fine_process7_select").selectpicker("val", object.fine_process7);
+                            $('#fine_process7_time_input').val(object.fine_process7_time);
+                            select_fine_process7(object.fine_process7);
+                        }
+                        if(object.fine_process8){
+                            $("#fine_process8_select").selectpicker("val", object.fine_process8);
+                            $('#fine_process8_time_input').val(object.fine_process8_time);
+                            select_fine_process8(object.fine_process8);
+                        }
+                    }
+                },
+                error: function() {
+                    alert("Ajax错误，请联系技术人员");
+                }
+            });
+            $('#modify').show();
+            $('#submit').hide();
+            comein_modify = true;
+            $('#exampleModal').modal();
+        }else{
+            alert("请选择一条记录。");
+        }   
+    };
+
+});
+</script>
+<script>
+$('#exampleModal').on('shown.bs.modal', function(e) {
+    keyboardJS.resume();
+})
+$('#exampleModal').on('hidden.bs.modal', function(e) {
+    keyboardJS.pause();
+    if(comein_modify){
+        init();
+        comein_modify = false;
+    }
+    machine_type=undefined;
+    machine_num=undefined;
+})
+var init = function() {
+    $("#name").val("");
+    $("#drawing_number").val("");
+    $("#number").val("");
+    $("#size1").val("");
+    $("#size2").val("");
+    $("#size3").val("");
+    $("#commit_textarea").val("");
+    $("#rude_process1_time_input").val("");
+    $("#rude_process2_time_input").val("");
+    $("#rude_process3_time_input").val("");
+    $("#rude_process4_time_input").val("");
+    $("#rude_process5_time_input").val("");
+    $("#rude_process6_time_input").val("");
+    $("#rude_process7_time_input").val("");
+
+    $("#fine_process1_time_input").val("");
+    $("#fine_process2_time_input").val("");
+    $("#fine_process3_time_input").val("");
+    $("#fine_process4_time_input").val("");
+    $("#fine_process5_time_input").val("");
+    $("#fine_process6_time_input").val("");
+    $("#fine_process7_time_input").val("");
+    $("#fine_process8_time_input").val("");
+
+    $("#material_select").selectpicker("val", "");
+    $("#measure_select").selectpicker("val", "");
+    $("#part_type_select").selectpicker("val", "");
+    $("#material_shape_select").selectpicker("val", "");
+    $("#rude_process1_select").selectpicker("val", "");
+    $("#rude_process2_select").selectpicker("val", "");
+    $("#rude_process3_select").selectpicker("val", "");
+    $("#rude_process4_select").selectpicker("val", "");
+    $("#rude_process5_select").selectpicker("val", "");
+    $("#rude_process6_select").selectpicker("val", "");
+    $("#rude_process7_select").selectpicker("val", "");
+    $("#fine_process1_select").selectpicker("val", "");
+    $("#fine_process2_select").selectpicker("val", "");
+    $("#fine_process3_select").selectpicker("val", "");
+    $("#fine_process4_select").selectpicker("val", "");
+    $("#fine_process5_select").selectpicker("val", "");
+    $("#fine_process6_select").selectpicker("val", "");
+    $("#fine_process7_select").selectpicker("val", "");
+    $("#fine_process8_select").selectpicker("val", "");
+
+    $("#size_group1").hide();
+    $("#size_group2").hide();
+    $("#size_group3").hide();
+
+    $("#material_weight").text("");
+    $("#material_price").text("");
+    $("#material_totoal_price").text("");
+    $("#one_part_process_price").text("");
+    $("#total_price").text("");
+    $("#commit_textarea").text("");
+
+    $("#rude_process1_price_td").text("");
+    $("#rude_process2_price_td").text("");
+    $("#rude_process3_price_td").text("");
+    $("#rude_process4_price_td").text("");
+    $("#rude_process5_price_td").text("");
+    $("#rude_process6_price_td").text("");
+    $("#rude_process7_price_td").text("");
+    $("#fine_process1_price_td").text("");
+    $("#fine_process2_price_td").text("");
+    $("#fine_process3_price_td").text("");
+    $("#fine_process4_price_td").text("");
+    $("#fine_process5_price_td").text("");
+    $("#fine_process6_price_td").text("");
+    $("#fine_process7_price_td").text("");
+    $("#fine_process8_price_td").text("");
+
+    $("#rude_process1_total_price_td").text("");
+    $("#rude_process2_total_price_td").text("");
+    $("#rude_process3_total_price_td").text("");
+    $("#rude_process4_total_price_td").text("");
+    $("#rude_process5_total_price_td").text("");
+    $("#rude_process6_total_price_td").text("");
+    $("#rude_process7_total_price_td").text("");
+    $("#fine_process1_total_price_td").text("");
+    $("#fine_process2_total_price_td").text("");
+    $("#fine_process3_total_price_td").text("");
+    $("#fine_process4_total_price_td").text("");
+    $("#fine_process5_total_price_td").text("");
+    $("#fine_process6_total_price_td").text("");
+    $("#fine_process7_total_price_td").text("");
+    $("#fine_process8_total_price_td").text("");
+};
+$('#init').on('click', function() {
+    // var $btn = $(this).button('loading')
+    // $btn.button('reset')
+    init();
+
+    alert("初始化完毕");
+})
+$('#submit').on('click', function() {
+    $.ajax({
+        url: '{{ url_for("make_order.submit_part") }}',
+        type: "POST",
+        async: false,
+        data: {
+            "order_id": select_order_id,
+            "name": $("#name").val(),
+            "drawing_number": $("#drawing_number").val(),
+            "number": $("#number").val(),
+            "size1": $("#size1").val(),
+            "size2": $("#size2").val(),
+            "size3": $("#size3").val(),
+            "commit_textarea": $("#commit_textarea").val(),
+            "rude_process1_time_input": $("#rude_process1_time_input").val(),
+            "rude_process2_time_input": $("#rude_process2_time_input").val(),
+            "rude_process3_time_input": $("#rude_process3_time_input").val(),
+            "rude_process4_time_input": $("#rude_process4_time_input").val(),
+            "rude_process5_time_input": $("#rude_process5_time_input").val(),
+            "rude_process6_time_input": $("#rude_process6_time_input").val(),
+            "rude_process7_time_input": $("#rude_process7_time_input").val(),
+            "fine_process1_time_input": $("#fine_process1_time_input").val(),
+            "fine_process2_time_input": $("#fine_process2_time_input").val(),
+            "fine_process3_time_input": $("#fine_process3_time_input").val(),
+            "fine_process4_time_input": $("#fine_process4_time_input").val(),
+            "fine_process5_time_input": $("#fine_process5_time_input").val(),
+            "fine_process6_time_input": $("#fine_process6_time_input").val(),
+            "fine_process7_time_input": $("#fine_process7_time_input").val(),
+            "fine_process8_time_input": $("#fine_process8_time_input").val(),
+            "material_select": $("#material_select_td button")[0].title,
+            "measure_select": $("#measure_select_td button")[0].title,
+            "part_type_select": $("#part_type_select_td button")[0].title,
+            "material_shape_select": $("#material_shape_td button")[0].title,
+            "rude_process1_select": $("#rude_process1_td button")[0].title,
+            "rude_process2_select": $("#rude_process2_td button")[0].title,
+            "rude_process3_select": $("#rude_process3_td button")[0].title,
+            "rude_process4_select": $("#rude_process4_td button")[0].title,
+            "rude_process5_select": $("#rude_process5_td button")[0].title,
+            "rude_process6_select": $("#rude_process6_td button")[0].title,
+            "rude_process7_select": $("#rude_process7_td button")[0].title,
+            "fine_process1_select": $("#fine_process1_td button")[0].title,
+            "fine_process2_select": $("#fine_process2_td button")[0].title,
+            "fine_process3_select": $("#fine_process3_td button")[0].title,
+            "fine_process4_select": $("#fine_process4_td button")[0].title,
+            "fine_process5_select": $("#fine_process5_td button")[0].title,
+            "fine_process6_select": $("#fine_process6_td button")[0].title,
+            "fine_process7_select": $("#fine_process7_td button")[0].title,
+            "fine_process8_select": $("#fine_process8_td button")[0].title,
+            "material_weight": $("#material_weight").text(),
+            "material_price": $("#material_price").text(),
+            "material_totoal_price": $("#material_totoal_price").text(),
+            "one_part_process_price": $("#one_part_process_price").text(),
+            "total_price": $("#total_price").text(),
+            "rude_process1_price_td": $("#rude_process1_price_td").text(),
+            "rude_process2_price_td": $("#rude_process2_price_td").text(),
+            "rude_process3_price_td": $("#rude_process3_price_td").text(),
+            "rude_process4_price_td": $("#rude_process4_price_td").text(),
+            "rude_process5_price_td": $("#rude_process5_price_td").text(),
+            "rude_process6_price_td": $("#rude_process6_price_td").text(),
+            "rude_process7_price_td": $("#rude_process7_price_td").text(),
+            "fine_process1_price_td": $("#fine_process1_price_td").text(),
+            "fine_process2_price_td": $("#fine_process2_price_td").text(),
+            "fine_process3_price_td": $("#fine_process3_price_td").text(),
+            "fine_process4_price_td": $("#fine_process4_price_td").text(),
+            "fine_process5_price_td": $("#fine_process5_price_td").text(),
+            "fine_process6_price_td": $("#fine_process6_price_td").text(),
+            "fine_process7_price_td": $("#fine_process7_price_td").text(),
+            "fine_process8_price_td": $("#fine_process8_price_td").text(),
+            "rude_process1_total_price_td": $("#rude_process1_total_price_td").text(),
+            "rude_process2_total_price_td": $("#rude_process2_total_price_td").text(),
+            "rude_process3_total_price_td": $("#rude_process3_total_price_td").text(),
+            "rude_process4_total_price_td": $("#rude_process4_total_price_td").text(),
+            "rude_process5_total_price_td": $("#rude_process5_total_price_td").text(),
+            "rude_process6_total_price_td": $("#rude_process6_total_price_td").text(),
+            "rude_process7_total_price_td": $("#rude_process7_total_price_td").text(),
+            "fine_process1_total_price_td": $("#fine_process1_total_price_td").text(),
+            "fine_process2_total_price_td": $("#fine_process2_total_price_td").text(),
+            "fine_process3_total_price_td": $("#fine_process3_total_price_td").text(),
+            "fine_process4_total_price_td": $("#fine_process4_total_price_td").text(),
+            "fine_process5_total_price_td": $("#fine_process5_total_price_td").text(),
+            "fine_process6_total_price_td": $("#fine_process6_total_price_td").text(),
+            "fine_process7_total_price_td": $("#fine_process7_total_price_td").text(),
+            "fine_process8_total_price_td": $("#fine_process8_total_price_td").text()
+        },
+        success: function(object) {
+            if (object.result == false) {
+                alert(object.message);
+            } else {
+                // $("#jqGrid").setGridParam({url: '{{ url_for("make_order.part_getdata") }}'});
+                $("#jqGrid").jqGrid('setGridParam', {
+                    datatype: 'json'
+                }).trigger("reloadGrid", {
+                    fromServer: true,
+                    page: 1
+                }); //重新载入
+                init();
+                $('#exampleModal').modal('hide');
+            }
+        },
+        error: function() {
+            alert("Ajax错误，请联系技术人员");
+        }
+    });
+});
+$('#modify').on('click', function() {
+    $.ajax({
+        url: '{{ url_for("make_order.modify_part") }}',
+        type: "POST",
+        async: false,
+        data: {
+            "order_id": select_order_id,
+            "old_name": modify_name,
+            "name": $("#name").val(),
+            "drawing_number": $("#drawing_number").val(),
+            "number": $("#number").val(),
+            "size1": $("#size1").val(),
+            "size2": $("#size2").val(),
+            "size3": $("#size3").val(),
+            "commit_textarea": $("#commit_textarea").val(),
+            "rude_process1_time_input": $("#rude_process1_time_input").val(),
+            "rude_process2_time_input": $("#rude_process2_time_input").val(),
+            "rude_process3_time_input": $("#rude_process3_time_input").val(),
+            "rude_process4_time_input": $("#rude_process4_time_input").val(),
+            "rude_process5_time_input": $("#rude_process5_time_input").val(),
+            "rude_process6_time_input": $("#rude_process6_time_input").val(),
+            "rude_process7_time_input": $("#rude_process7_time_input").val(),
+            "fine_process1_time_input": $("#fine_process1_time_input").val(),
+            "fine_process2_time_input": $("#fine_process2_time_input").val(),
+            "fine_process3_time_input": $("#fine_process3_time_input").val(),
+            "fine_process4_time_input": $("#fine_process4_time_input").val(),
+            "fine_process5_time_input": $("#fine_process5_time_input").val(),
+            "fine_process6_time_input": $("#fine_process6_time_input").val(),
+            "fine_process7_time_input": $("#fine_process7_time_input").val(),
+            "fine_process8_time_input": $("#fine_process8_time_input").val(),
+            "material_select": $("#material_select_td button")[0].title,
+            "measure_select": $("#measure_select_td button")[0].title,
+            "part_type_select": $("#part_type_select_td button")[0].title,
+            "material_shape_select": $("#material_shape_td button")[0].title,
+            "rude_process1_select": $("#rude_process1_td button")[0].title,
+            "rude_process2_select": $("#rude_process2_td button")[0].title,
+            "rude_process3_select": $("#rude_process3_td button")[0].title,
+            "rude_process4_select": $("#rude_process4_td button")[0].title,
+            "rude_process5_select": $("#rude_process5_td button")[0].title,
+            "rude_process6_select": $("#rude_process6_td button")[0].title,
+            "rude_process7_select": $("#rude_process7_td button")[0].title,
+            "fine_process1_select": $("#fine_process1_td button")[0].title,
+            "fine_process2_select": $("#fine_process2_td button")[0].title,
+            "fine_process3_select": $("#fine_process3_td button")[0].title,
+            "fine_process4_select": $("#fine_process4_td button")[0].title,
+            "fine_process5_select": $("#fine_process5_td button")[0].title,
+            "fine_process6_select": $("#fine_process6_td button")[0].title,
+            "fine_process7_select": $("#fine_process7_td button")[0].title,
+            "fine_process8_select": $("#fine_process8_td button")[0].title,
+            "material_weight": $("#material_weight").text(),
+            "material_price": $("#material_price").text(),
+            "material_totoal_price": $("#material_totoal_price").text(),
+            "one_part_process_price": $("#one_part_process_price").text(),
+            "total_price": $("#total_price").text(),
+            "rude_process1_price_td": $("#rude_process1_price_td").text(),
+            "rude_process2_price_td": $("#rude_process2_price_td").text(),
+            "rude_process3_price_td": $("#rude_process3_price_td").text(),
+            "rude_process4_price_td": $("#rude_process4_price_td").text(),
+            "rude_process5_price_td": $("#rude_process5_price_td").text(),
+            "rude_process6_price_td": $("#rude_process6_price_td").text(),
+            "rude_process7_price_td": $("#rude_process7_price_td").text(),
+            "fine_process1_price_td": $("#fine_process1_price_td").text(),
+            "fine_process2_price_td": $("#fine_process2_price_td").text(),
+            "fine_process3_price_td": $("#fine_process3_price_td").text(),
+            "fine_process4_price_td": $("#fine_process4_price_td").text(),
+            "fine_process5_price_td": $("#fine_process5_price_td").text(),
+            "fine_process6_price_td": $("#fine_process6_price_td").text(),
+            "fine_process7_price_td": $("#fine_process7_price_td").text(),
+            "fine_process8_price_td": $("#fine_process8_price_td").text(),
+            "rude_process1_total_price_td": $("#rude_process1_total_price_td").text(),
+            "rude_process2_total_price_td": $("#rude_process2_total_price_td").text(),
+            "rude_process3_total_price_td": $("#rude_process3_total_price_td").text(),
+            "rude_process4_total_price_td": $("#rude_process4_total_price_td").text(),
+            "rude_process5_total_price_td": $("#rude_process5_total_price_td").text(),
+            "rude_process6_total_price_td": $("#rude_process6_total_price_td").text(),
+            "rude_process7_total_price_td": $("#rude_process7_total_price_td").text(),
+            "fine_process1_total_price_td": $("#fine_process1_total_price_td").text(),
+            "fine_process2_total_price_td": $("#fine_process2_total_price_td").text(),
+            "fine_process3_total_price_td": $("#fine_process3_total_price_td").text(),
+            "fine_process4_total_price_td": $("#fine_process4_total_price_td").text(),
+            "fine_process5_total_price_td": $("#fine_process5_total_price_td").text(),
+            "fine_process6_total_price_td": $("#fine_process6_total_price_td").text(),
+            "fine_process7_total_price_td": $("#fine_process7_total_price_td").text(),
+            "fine_process8_total_price_td": $("#fine_process8_total_price_td").text()
+        },
+        success: function(object) {
+            if (object.result == false) {
+                alert(object.message);
+            } else {
+                // $("#jqGrid").setGridParam({url: '{{ url_for("make_order.part_getdata") }}'});
+                $("#jqGrid").jqGrid('setGridParam', {
+                    datatype: 'json'
+                }).trigger("reloadGrid", {
+                    fromServer: true,
+                    page: 1
+                }); //重新载入
+                init();
+                $('#exampleModal').modal('hide');
+            }
+        },
+        error: function() {
+            alert("Ajax错误，请联系技术人员");
+        }
+    });
+});
+</script>
+{% endblock %}

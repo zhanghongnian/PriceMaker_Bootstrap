@@ -1,0 +1,708 @@
+{% extends "layout.html" %} {% block script %}
+<script type="text/javascript" src="/static/Guriddo_jqGrid_JS_5.1.0/js/i18n/grid.locale-cn.js"></script>
+<script type="text/javascript" src="/static/Guriddo_jqGrid_JS_5.1.0/js/jquery.jqGrid.min.js"></script>
+<link rel="stylesheet" href="/static/Guriddo_jqGrid_JS_5.1.0/css/ui.jqgrid-bootstrap.css">
+<link rel="stylesheet" href="/static/jquery-ui-1.11.4.custom/jquery-ui.min.css">
+<script type="text/javascript" src="/static/jquery-ui-1.11.4.custom/jquery-ui.min.js"></script>
+<script>
+$.jgrid.defaults.width = 780;
+$.jgrid.defaults.responsive = true;
+$.jgrid.defaults.styleUI = 'Bootstrap';
+</script>
+<style>
+select {
+    width: 100px;
+}
+
+.table th,
+.table td,
+.table tr {
+    text-align: center;
+    vertical-align: middle;
+    /*height:38px;*/
+}
+
+.table>tbody>tr>td {
+    vertical-align: middle;
+}
+</style>
+{% endblock %}{% block body %}
+<div class="row">
+    <div class="col-md-1">.col-md-1</div>
+    <div class="col-md-10">
+        <div id="client_select_div">
+            <h2 class="demoHeaders">Selectmenu</h2>
+            <select id="client_select">
+                {% for client in clients %}
+                <option>{{ client }}</option> {% endfor %}
+            </select>
+        </div>
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                    <th>序号</th>
+                    <th colspan="2">图纸信息</th>
+                    <th colspan="2">材料成本</th>
+                    <th colspan="5">加工成本</th>
+                    <th>总计</th>
+                    <th>备注</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td rowspan="17">1</td>
+                    <td rowspan="4">工件名称</td>
+                    <td rowspan="4">
+                        <input type="text" id="name" style="width:100px">
+                    </td>
+                    <td rowspan="4">材料</td>
+                    <td id="material_select_td" rowspan="4">
+                        <select id="material_select">
+                            <option>&nbsp;</option>
+                            {% for material in materials %}
+                            <option>{{ material }}</option> {% endfor %}
+                        </select>
+                    </td>
+                    <td>加工类型</td>
+                    <td>加工流程</td>
+                    <td>耗时</td>
+                    <td>单位成本</td>
+                    <td>单项总计</td>
+                    <td rowspan="17" id="total_price"></td>
+                    <td rowspan="17"></td>
+                </tr>
+                <tr>
+                    <td rowspan="7">粗加工</td>
+                    <td id="rude_process1_td" style="padding: 0">
+                        <select id="rude_process1_select">
+                            <option>&nbsp;</option>
+                            {% for machine in machines %}
+                            <option>{{ machine }}</option> {% endfor %}
+                        </select>
+                    </td>
+                    <td style="padding: 0">
+                        <input type="text" id="rude_process1_time_input" oninput="rude_process_time_change(1)" onpropertychange="rude_process_time_change(1)" style="width:40px ">
+                    </td>
+                    <td id="rude_process1_price_td">&nbsp;</td>
+                    <td id="rude_process1_total_price_td">&nbsp;</td>
+                </tr>
+                <tr>
+                    <td id="rude_process2_td" style="padding: 0 ">
+                        <select id="rude_process2_select">
+                            <option>&nbsp;</option>
+                            {% for machine in machines %}
+                            <option>{{ machine }}</option> {% endfor %}
+                        </select>
+                    </td>
+                    <td style="padding: 0 ">
+                        <input type="text" id="rude_process2_time_input" oninput="rude_process_time_change(2)" onpropertychange="rude_process_time_change(2)" style="width:40px">
+                    </td>
+                    <td id="rude_process2_price_td">&nbsp;</td>
+                    <td id="rude_process2_total_price_td"></td>
+                </tr>
+                <tr>
+                    <td id="rude_process3_td" style="padding: 0">
+                        <select id="rude_process3_select">
+                            <option>&nbsp;</option>
+                            {% for machine in machines %}
+                            <option>{{ machine }}</option> {% endfor %}
+                        </select>
+                    </td>
+                    <td style="padding: 0">
+                        <input type="text" id="rude_process3_time_input" oninput="rude_process_time_change(3)" onpropertychange="rude_process_time_change(3)" style="width:40px">
+                    </td>
+                    <td id="rude_process3_price_td">&nbsp;</td>
+                    <td id="rude_process3_total_price_td"></td>
+                </tr>
+                <tr>
+                    <td rowspan="3">图号</td>
+                    <td rowspan="3">
+                        <input type="text" id="drawing_number" style="width:100px">
+                    </td>
+                    <td rowspan="3">数量</td>
+                    <td rowspan="3">
+                        <input type="text" id="number"  oninput="calc_total_part_price()"  style="width:100px">
+                    </td>
+                    <td id="rude_process4_td" style="padding: 0">
+                        <select id="rude_process4_select">
+                            <option>&nbsp;</option>
+                            {% for machine in machines %}
+                            <option>{{ machine }}</option> {% endfor %}
+                        </select>
+                    </td>
+                    <td style="padding: 0">
+                        <input type="text" id="rude_process4_time_input" oninput="rude_process_time_change(4)" onpropertychange="rude_process_time_change(4)" style="width:40px">
+                    </td>
+                    <td id="rude_process4_price_td">&nbsp;</td>
+                    <td id="rude_process4_total_price_td"></td>
+                </tr>
+                <tr>
+                    <td id="rude_process5_td" style="padding: 0">
+                        <select id="rude_process5_select">
+                            <option>&nbsp;</option>
+                            {% for machine in machines %}
+                            <option>{{ machine }}</option> {% endfor %}
+                        </select>
+                    </td>
+                    <td style="padding: 0">
+                        <input type="text" id="rude_process5_time_input" oninput="rude_process_time_change(5)" onpropertychange="rude_process_time_change(5)" style="width:40px">
+                    </td>
+                    <td id="rude_process5_price_td">&nbsp;</td>
+                    <td id="rude_process5_total_price_td"></td>
+                </tr>
+                <tr>
+                    <td id="rude_process6_td" style="padding: 0">
+                        <select id="rude_process6_select">
+                            <option>&nbsp;</option>
+                            {% for machine in machines %}
+                            <option>{{ machine }}</option> {% endfor %}
+                        </select>
+                    </td>
+                    <td style="padding: 0">
+                        <input type="text" id="rude_process6_time_input" oninput="rude_process_time_change(6)" onpropertychange="rude_process_time_change(6)" style="width:40px">
+                    </td>
+                    <td id="rude_process6_price_td">&nbsp;</td>
+                    <td id="rude_process6_total_price_td"></td>
+                </tr>
+                <tr>
+                    <td rowspan="3">精度要求</td>
+                    <td rowspan="3">
+                        <select id="measure_select">
+                            <option>&nbsp;</option>
+                            {% for measure in measures %}
+                            <option>{{ measure }}</option> {% endfor %}
+                        </select>
+                    </td>
+                    <td rowspan="3">下料尺寸</td>
+                    <td rowspan="3">
+                        <div id="size_group1" style="display: none;">
+                            <div id="mark1" style="display:inline;"></div>
+                            <div style="display:inline;">
+                                <input type="text" name="size1" id="size1" oninput="weightchange()" onpropertychange="weightchange()" style="width:50px">
+                            </div>
+                        </div>
+                        <div id="size_group2" style="display: none;">
+                            <div id="mark2" style="display:inline;"></div>
+                            <div style="display:inline;">
+                                <input type="text" id="size2" oninput="weightchange()" onpropertychange="weightchange()" style="width:50px">
+                            </div>
+                        </div>
+                        <div id="size_group3" style="display: none;">
+                            <div id="mark3" style="display:inline;"></div>
+                            <div style="display:inline;">
+                                <input type="text" id="size3" oninput="weightchange()" onpropertychange="weightchange()" style="width:50px">
+                            </div>
+                        </div>
+                    </td>
+                    <td id="rude_process7_td" style="padding: 0">
+                        <select id="rude_process7_select">
+                            <option>&nbsp;</option>
+                            {% for machine in machines %}
+                            <option>{{ machine }}</option> {% endfor %}
+                        </select>
+                    </td>
+                    <td style="padding: 0">
+                        <input type="text" id="rude_process7_time_input" oninput="rude_process_time_change(7)" onpropertychange="rude_process_time_change(7)" style="width:40px">
+                    </td>
+                    <td id="rude_process7_price_td">&nbsp;</td>
+                    <td id="rude_process7_total_price_td"></td>
+                </tr>
+                <tr>
+                    <td rowspan="8">精加工</td>
+                    <td id="fine_process1_td" style="padding: 0">
+                        <select id="fine_process1_select">
+                            <option>&nbsp;</option>
+                            {% for machine in machines %}
+                            <option>{{ machine }}</option> {% endfor %}
+                        </select>
+                    </td>
+                    <td style="padding: 0">
+                        <input type="text" id="fine_process1_time_input" oninput="fine_process_time_change(1)" onpropertychange="fine_process_time_change(1)" style="width:40px">
+                    </td>
+                    <td id="fine_process1_price_td">&nbsp;</td>
+                    <td id="fine_process1_total_price_td"></td>
+                </tr>
+                <tr>
+                    <td id="fine_process2_td" style="padding: 0">
+                        <select id="fine_process2_select">
+                            <option>&nbsp;</option>
+                            {% for machine in machines %}
+                            <option>{{ machine }}</option> {% endfor %}
+                        </select>
+                    </td>
+                    <td style="padding: 0">
+                        <input type="text" id="fine_process2_time_input" oninput="fine_process_time_change(2)" onpropertychange="fine_process_time_change(2)" style="width:40px">
+                    </td>
+                    <td id="fine_process2_price_td">&nbsp;</td>
+                    <td id="fine_process2_total_price_td"></td>
+                </tr>
+                <tr>
+                    <td rowspan="3">工件类型</td>
+                    <td rowspan="3">
+                        <select id="part_type_select">
+                            <option>&nbsp;</option>
+                            {% for part_type in part_types %}
+                            <option>{{ part_type }}</option> {% endfor %}
+                        </select>
+                    </td>
+                    <td rowspan="3">理论重量</td>
+                    <td rowspan="3" id="material_weight"></td>
+                    <td id="fine_process3_td" style="padding: 0">
+                        <select id="fine_process3_select">
+                            <option>&nbsp;</option>
+                            {% for machine in machines %}
+                            <option>{{ machine }}</option> {% endfor %}
+                        </select>
+                    </td>
+                    <td style="padding: 0">
+                        <input type="text" id="fine_process3_time_input" oninput="fine_process_time_change(3)" onpropertychange="fine_process_time_change(3)" style="width:40px">
+                    </td>
+                    <td id="fine_process3_price_td">&nbsp;</td>
+                    <td id="fine_process3_total_price_td"></td>
+                </tr>
+                <tr>
+                    <td id="fine_process4_td" style="padding: 0">
+                        <select id="fine_process4_select">
+                            <option>&nbsp;</option>
+                            {% for machine in machines %}
+                            <option>{{ machine }}</option> {% endfor %}
+                        </select>
+                    </td>
+                    <td style="padding: 0">
+                        <input type="text" id="fine_process4_time_input" oninput="fine_process_time_change(4)" onpropertychange="fine_process_time_change(4)" style="width:40px">
+                    </td>
+                    <td id="fine_process4_price_td">&nbsp;</td>
+                    <td id="fine_process4_total_price_td"></td>
+                </tr>
+                <tr>
+                    <td id="fine_process5_td" style="padding: 0">
+                        <select id="fine_process5_select">
+                            <option>&nbsp;</option>
+                            {% for machine in machines %}
+                            <option>{{ machine }}</option> {% endfor %}
+                        </select>
+                    </td>
+                    <td style="padding: 0">
+                        <input type="text" id="fine_process5_time_input" oninput="fine_process_time_change(5)" onpropertychange="fine_process_time_change(5)" style="width:40px">
+                    </td>
+                    <td id="fine_process5_price_td">&nbsp;</td>
+                    <td id="fine_process5_total_price_td"></td>
+                </tr>
+                <tr>
+                    <td rowspan="3">材料类型</td>
+                    <td id="material_shape_td" rowspan="3">
+                        <select id="material_shape_select">
+                            <option>&nbsp;</option>
+                            {% for material_shape in material_shapes %}
+                            <option>{{ material_shape }}</option> {% endfor %}
+                        </select>
+                    </td>
+                    <td rowspan="2">材料单价</td>
+                    <td id="material_price" rowspan="2">&nbsp;</td>
+                    <td id="fine_process6_td" style="padding: 0">
+                        <select id="fine_process6_select">
+                            <option>&nbsp;</option>
+                            {% for machine in machines %}
+                            <option>{{ machine }}</option> {% endfor %}
+                        </select>
+                    </td>
+                    <td style="padding: 0">
+                        <input type="text" id="fine_process6_time_input" oninput="fine_process_time_change(6)" onpropertychange="fine_process_time_change(6)" style="width:40px">
+                    </td>
+                    <td id="fine_process6_price_td">&nbsp;</td>
+                    <td id="fine_process6_total_price_td"></td>
+                </tr>
+                <tr>
+                    <td id="fine_process7_td" style="padding: 0">
+                        <select id="fine_process7_select">
+                            <option>&nbsp;</option>
+                            {% for machine in machines %}
+                            <option>{{ machine }}</option> {% endfor %}
+                        </select>
+                    </td>
+                    <td style="padding: 0">
+                        <input type="text" id="fine_process7_time_input" oninput="fine_process_time_change(7)" onpropertychange="fine_process_time_change(7)" style="width:40px">
+                    </td>
+                    <td id="fine_process7_price_td">&nbsp;</td>
+                    <td id="fine_process7_total_price_td"></td>
+                </tr>
+                <tr>
+                    <td rowspan="2">材料金额</td>
+                    <td rowspan="2" id="material_totoal_price"></td>
+                    <td id="fine_process8_td" style="padding: 0">
+                        <select id="fine_process8_select">
+                            <option>&nbsp;</option>
+                            {% for machine in machines %}
+                            <option>{{ machine }}</option> {% endfor %}
+                        </select>
+                    </td>
+                    <td style="padding: 0">
+                        <input type="text" id="fine_process8_time_input" oninput="fine_process_time_change(8)" onpropertychange="fine_process_time_change(8)" style="width:40px">
+                    </td>
+                    <td id="fine_process8_price_td">&nbsp;</td>
+                    <td id="fine_process8_total_price_td"></td>
+                </tr>
+                <tr>
+                    <td>&nbsp;</td>
+                    <td>&nbsp;</td>
+                    <td colspan="4">零件加工费单价（含热处理费）</td>
+                    <td id="one_part_process_price"></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    <div class="col-md-1">.col-md-1</div>
+</div>
+<script>
+$("#rude_process1_select").selectmenu({
+    change: function(event, data) {
+        rude_process_price_change(1);
+        calc_one_part_process_price();
+    }
+});
+$("#rude_process2_select").selectmenu({
+    change: function(event, data) {
+        rude_process_price_change(2);
+        calc_one_part_process_price();
+    }
+});
+$("#rude_process3_select").selectmenu({
+    change: function(event, data) {
+        rude_process_price_change(3);
+        calc_one_part_process_price();
+    }
+});
+$("#rude_process4_select").selectmenu({
+    change: function(event, data) {
+        rude_process_price_change(4);
+        calc_one_part_process_price();
+    }
+});
+$("#rude_process5_select").selectmenu({
+    change: function(event, data) {
+        rude_process_price_change(5);
+        calc_one_part_process_price();
+    }
+});
+$("#rude_process6_select").selectmenu({
+    change: function(event, data) {
+        rude_process_price_change(6);
+        calc_one_part_process_price();
+    }
+});
+$("#rude_process7_select").selectmenu({
+    change: function(event, data) {
+        rude_process_price_change(7);
+        calc_one_part_process_price();
+    }
+});
+// 改变工缴价格
+function rude_process_price_change(i) {
+    var price;
+    $.ajax({
+        url: '{{ url_for("part.part_get_machine_price") }}',
+        type: "POST",
+        async: false,
+        data: {
+            "client": $("#client_select_div .ui-selectmenu-text").text(),
+            "machine": $("#rude_process" + i + "_td .ui-selectmenu-text").text()
+        },
+        success: function(object) {
+            if (object.result == true)
+                price = object.price;
+        },
+        error: function() {
+            alert("Ajax错误，请联系技术人员");
+        }
+    })
+    if (price > 0) {
+        $("#rude_process" + i + "_price_td").text(price);
+        rude_process_time_change(i);
+        return;
+    };
+    $("#rude_process" + i + "_price_td").text("");
+    rude_process_time_change(i);
+};
+
+$("#fine_process1_select").selectmenu({
+    change: function(event, data) {
+        fine_process_price_change(1);
+        calc_one_part_process_price();
+    }
+});
+$("#fine_process2_select").selectmenu({
+    change: function(event, data) {
+        fine_process_price_change(2);
+        calc_one_part_process_price();
+    }
+});
+$("#fine_process3_select").selectmenu({
+    change: function(event, data) {
+        fine_process_price_change(3);
+        calc_one_part_process_price();
+    }
+});
+$("#fine_process4_select").selectmenu({
+    change: function(event, data) {
+        fine_process_price_change(4);
+        calc_one_part_process_price();
+    }
+});
+$("#fine_process5_select").selectmenu({
+    change: function(event, data) {
+        fine_process_price_change(5);
+        calc_one_part_process_price();
+    }
+});
+$("#fine_process6_select").selectmenu({
+    change: function(event, data) {
+        fine_process_price_change(6);
+        calc_one_part_process_price();
+    }
+});
+$("#fine_process7_select").selectmenu({
+    change: function(event, data) {
+        fine_process_price_change(7);
+        calc_one_part_process_price();
+    }
+});
+$("#fine_process8_select").selectmenu({
+    change: function(event, data) {
+        fine_process_price_change(8);
+        calc_one_part_process_price();
+    }
+});
+
+function fine_process_price_change(i) {
+    var price;
+    $.ajax({
+        url: '{{ url_for("part.part_get_machine_price") }}',
+        type: "POST",
+        async: false,
+        data: {
+            "client": $("#client_select_div .ui-selectmenu-text").text(),
+            "machine": $("#fine_process" + i + "_td .ui-selectmenu-text").text()
+        },
+        success: function(object) {
+            if (object.result == true)
+                price = object.price;
+        },
+        error: function() {
+            alert("Ajax错误，请联系技术人员");
+        }
+    })
+    if (price > 0) {
+        $("#fine_process" + i + "_price_td").text(price);
+        fine_process_time_change(i);
+        return;
+    };
+    $("#fine_process" + i + "_price_td").text("");
+    fine_process_time_change(i);
+};
+
+
+$("#client_select").selectmenu({
+    change: function(event, data) {
+        change_material_price();
+        for (var i = 1; i <= 7; i++) {
+            rude_process_price_change(i);
+        };
+        for (var i = 1; i <= 8; i++) {
+            fine_process_price_change(i);
+        };
+        calc_one_part_process_price();
+    }
+});
+$("#measure_select").selectmenu();
+$("#part_type_select").selectmenu();
+$("#material_shape_select").selectmenu({
+    change: function(event, data) {
+        switch (data.item.value) {
+            case "板材":
+                $("#mark1").text("L:");
+                $("#mark2").text("W:");
+                $("#mark3").text("H:");
+                $("#size_group1").show()
+                $("#size_group2").show()
+                $("#size_group3").show()
+                break;
+            case "管材":
+                $("#mark1").text("D:");
+                $("#mark2").text("d:");
+                $("#mark3").text("L:");
+                $("#size_group1").show()
+                $("#size_group2").show()
+                $("#size_group3").show()
+                break;
+            case "棒材":
+                $("#mark1").text("Φ:");
+                $("#mark2").text("L:");
+                $("#mark3").text("H:");
+                $("#size_group1").show()
+                $("#size_group2").show()
+                $("#size_group3").hide()
+                break;
+            default:
+                $("#size_group1").hide()
+                $("#size_group2").hide()
+                $("#size_group3").hide()
+                break;
+        }
+
+        weightchange();
+    }
+});
+$("#material_select").selectmenu({
+    change: function(event, data) {
+        change_material_price();
+        weightchange();
+    }
+});
+// 改变材料报价
+function change_material_price() {
+    $.ajax({
+        url: '{{ url_for("part.part_get_material_price") }}',
+        type: "POST",
+        data: {
+            "client": $("#client_select_div .ui-selectmenu-text").text(),
+            "material": $("#material_select_td .ui-selectmenu-text").text()
+        },
+        success: function(object) {
+            if (object.result == true)
+                $("#material_price").text(object.price);
+            else
+                $("#material_price").text(" ");
+        },
+        error: function() {
+            alert("Ajax错误，请联系技术人员");
+        }
+    });
+    material_total_price_change();
+};
+// 计算重量
+function weightchange() {
+    var v;
+    var weight;
+    var density;
+    $.ajax({
+        url: '{{ url_for("part.part_get_material_density") }}',
+        type: "POST",
+        async: false,
+        data: {
+            "material": $("#material_select_td .ui-selectmenu-text").text()
+        },
+        success: function(object) {
+            if (object.result == true)
+                density = object.density;
+        },
+        error: function() {
+            alert("Ajax错误，请联系技术人员");
+        }
+    });
+    if (typeof(density) == "undefined" || density <= 0) {
+        $("#material_weight").text(" ");
+        return
+    }
+    var size1 = $("#size1").val();
+    var size2 = $("#size2").val();
+    var size3 = $("#size3").val();
+
+    switch ($("#material_shape_td .ui-selectmenu-text").text()) {
+        case "板材":
+            if ((!isNaN(size1)) && (!isNaN(size2)) && (!isNaN(size3))) {
+                v = size1 * size2 * size3;
+            }
+            break;
+        case "管材":
+            if ((!isNaN(size1)) && (!isNaN(size2)) && (!isNaN(size3))) {
+                v = Math.PI * (size1 * size1 - size2 * size2) / 4 * size3;
+            }
+            break;
+        case "棒材":
+            if ((!isNaN(size1)) && (!isNaN(size2))) {
+                v = Math.PI * (size1 * size1) / 4 * size2;
+            }
+            break;
+        default:
+            $("#material_weight").text(" ");
+            return;
+            break;
+    }
+    if (v > 0) {
+        weight = density * v;
+        $("#material_weight").text(weight.toFixed(2));
+        material_total_price_change();
+        return;
+    }
+    $("#material_weight").text(" ");
+    material_total_price_change();
+};
+
+function material_total_price_change() {
+    var weight = $("#material_weight").text();
+    var price = $("#material_price").text();
+    $("#material_totoal_price").text(weight * price);
+    calc_total_part_price();
+};
+
+function rude_process_time_change(i) {
+    var price = $("#rude_process" + i + "_price_td").text();
+    var time = $("#rude_process" + i + "_time_input").val();
+    var machine = $("#rude_process" + i + "_td .ui-selectmenu-text").text()
+    if (machine.replace(/\s/g, "").length != 0) {
+        if ((!isNaN(price)) && (!isNaN(time))) {
+            $("#rude_process" + i + "_total_price_td").text(price * time);
+        } else {
+            $("#rude_process" + i + "_total_price_td").text(0);
+        }
+        calc_one_part_process_price();
+        return;
+    }
+    $("#rude_process" + i + "_total_price_td").text("");
+    calc_one_part_process_price();
+};
+
+function fine_process_time_change(i) {
+    var price = $("#fine_process" + i + "_price_td").text();
+    var time = $("#fine_process" + i + "_time_input").val();
+    var machine = $("#fine_process" + i + "_td .ui-selectmenu-text").text()
+    if (machine.replace(/\s/g, "").length != 0) {
+        if ((!isNaN(price)) && (!isNaN(time))) {
+            $("#fine_process" + i + "_total_price_td").text(price * time);
+        } else {
+            $("#fine_process" + i + "_total_price_td").text(0);
+        }
+        calc_one_part_process_price();
+        return;
+    }
+    $("#fine_process" + i + "_total_price_td").text("");
+    calc_one_part_process_price();
+};
+
+function calc_one_part_process_price() {
+    var sum = Number(0.0);
+    for (var i = 1; i <= 7; i++) {
+        var price = $("#rude_process" + i + "_total_price_td").text();
+        if (!isNaN(price))
+            sum += Number(price);
+    }
+    for (var i = 1; i <= 8; i++) {
+        var price = $("#fine_process" + i + "_total_price_td").text();
+        if (!isNaN(price))
+            sum += Number(price);
+
+    }
+    $("#one_part_process_price").text(sum);
+    calc_total_part_price();
+};
+// 计算多个零件总价
+function calc_total_part_price() {
+    var number = $("#number").val();
+    var material_price = $("#material_totoal_price").text();
+    var process_price = $("#one_part_process_price").text();
+    if (!isNaN(number)) {
+        $("#total_price").text((Number(material_price) + Number(process_price)) * number);
+    }
+}
+</script>
+{% endblock %}

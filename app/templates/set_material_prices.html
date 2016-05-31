@@ -1,0 +1,138 @@
+{% extends "layout.html" %}{% block script %}
+<script type="text/javascript" src="/static/Guriddo_jqGrid_JS_5.1.0/js/i18n/grid.locale-cn.js"></script>
+<script type="text/javascript" src="/static/Guriddo_jqGrid_JS_5.1.0/js/jquery.jqGrid.min.js"></script>
+<link rel="stylesheet" href="/static/Guriddo_jqGrid_JS_5.1.0/css/ui.jqgrid-bootstrap.css">
+<!-- <link rel="stylesheet" href="/static/jquery-ui-1.11.4.custom/jquery-ui.min.css"> -->
+<!-- <script type="text/javascript" src="/static/jquery-ui-1.11.4.custom/jquery-ui.min.js"></script> -->
+<!-- Latest compiled and minified CSS -->
+<link rel="stylesheet" href="/static/bootstrap-select-1.10.0/dist/css/bootstrap-select.min.css">
+<!-- Latest compiled and minified JavaScript -->
+<script src="/static/bootstrap-select-1.10.0/dist/js/bootstrap-select.min.js"></script>
+<!-- (Optional) Latest compiled and minified JavaScript translation files -->
+<script src="/static/bootstrap-select-1.10.0/dist/js/i18n/defaults-zh_CN.js"></script>
+<script>
+$.jgrid.defaults.width = 780;
+$.jgrid.defaults.responsive = true;
+$.jgrid.defaults.styleUI = 'Bootstrap';
+</script>
+<style>
+.ui-jqgrid {
+    margin: 0 auto
+}
+</style>
+<style>
+select {
+    width: 200px;
+}
+</style>
+{% endblock %} {% block body %}
+<div class="row">
+    <div class="col-md-2"></div>
+    <div class="col-md-8">
+        <div style="margin: 5px 20px 15px">
+            <h2 class="demoHeaders">选择客户</h2>
+            <select id="selectmenu" class="selectpicker">
+                {% for client in clients %}
+                <option>{{ client }}</option> {% endfor %}
+            </select>
+        </div>
+        <div style="margin-left:20px">
+            <table id="jqGrid"></table>
+            <div id="jqGridPager"></div>
+        </div>
+    </div>
+    <div class="col-md-2"></div>
+</div>
+<script type="text/javascript">
+$('#selectmenu').on('changed.bs.select', function(e) {
+    client = e.currentTarget.value;
+    $("#jqGrid").jqGrid('setGridParam', {
+        datatype: 'json',
+        postData: {
+            'client': client
+        }, //发送数据  
+        page: 1
+    }).trigger("reloadGrid"); //重新载入  
+});
+
+$(document).ready(function() {
+    $("#jqGrid").jqGrid({
+        url: '{{ url_for(".material_price_getdata") }}',
+        mtype: 'GET',
+        postData: {
+            'client': $("#selectmenu option")[0].text
+        },
+        // we set the changes to be made at client side using predefined word clientArray
+        editurl: 'clientArray',
+        datatype: "json",
+        colModel: [{
+            label: '材料',
+            name: 'material',
+            width: 75,
+            key: true,
+            editable: true,
+            editrules: {
+                required: true
+            }
+        }, {
+            label: '价格',
+            name: 'price',
+            width: 140,
+            editable: true // must set editable to true if you want to make the field editable
+        }],
+        sortname: 'material',
+        sortorder: 'asc',
+        loadonce: true,
+        viewrecords: true,
+        height: 380,
+        rowNum: 10,
+        pager: "#jqGridPager"
+    });
+
+    $('#jqGrid').navGrid('#jqGridPager',
+        // the buttons to appear on the toolbar of the grid
+        {
+            edit: true,
+            add: false,
+            del: false,
+            search: false,
+            refresh: false,
+            view: false,
+            position: "left",
+            cloneToTop: false
+        },
+        // options for the Edit Dialog
+        {
+            // editCaption: "The Edit Dialog",
+            recreateForm: true,
+            checkOnUpdate: true,
+            checkOnSubmit: true,
+            closeAfterEdit: true,
+            afterSubmit: function(data, postdata, oper) {
+                postdata.client_name = $(".bootstrap-select button")[0].title;
+                // postdata.client_name = $("#selectmenu option")[0].text;
+                var result;
+                $.ajax({
+                    url: '{{ url_for(".material_price_edit") }}',
+                    async: false,
+                    type: "POST",
+                    data: postdata,
+                    success: function(object) {
+                        if (object.result != true)
+                            result = [false, object.message]
+                        else
+                            result = [true, "", ""];
+                    },
+                    error: function() {
+                        result = [false, "Ajax错误，请联系技术人员"];
+                    }
+                });
+                return result;
+            },
+            errorTextFormat: function(data) {
+                return 'Error: ' + data.responseText
+            }
+        });
+});
+</script>
+{% endblock %}

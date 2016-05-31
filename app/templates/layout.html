@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="">
+    <meta name="author" content="">
+    <title>核价小webapp</title>
+    <!-- Bootstrap Core CSS -->
+    <link href="/static/bootstrap-3.3.5-dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Custom CSS -->
+    <!-- <link href="css/4-col-portfolio.css" rel="stylesheet"> -->
+    <style>
+        body {
+        padding-top: 70px;
+        /*text-align: center;*/        ｝
+    </style>
+    <!-- jQuery -->
+    <!-- <script src="/static/Guriddo_jqGrid_JS_5.1.0/js/jquery-1.11.0.min.js"></script> -->
+    <script src="/static/jquery-2.2.4.min.js"></script>
+    <!-- Bootstrap Core JavaScript -->
+    <script src="/static/bootstrap-3.3.5-dist/js/bootstrap.min.js"></script>
+    <!-- <script>
+    $SCRIPT_ROOT = {{ request.script_root | tojson | safe }};
+    </script> -->
+    {% block script %}{% endblock %}
+    <!-- HTML5 Shim and Respond.js IE8 support of HTML5 elements and media queries -->
+    <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
+    <!--[if lt IE 9]>
+        <script src="https://oss.maxcdn.com/libs/html5shiv/3.7.0/html5shiv.js"></script>
+        <script src="https://oss.maxcdn.com/libs/respond.js/1.4.2/respond.min.js"></script>
+    <![endif]-->
+</head>
+
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-inverse navbar-fixed-top" role="navigation">
+        <div class="container">
+            <!-- Brand and toggle get grouped for better mobile display -->
+            <div class="navbar-header">
+                <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1">
+                    <span class="sr-only">Toggle navigation</span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                </button>
+                <a class="navbar-brand" href="{{ url_for('main.index') }}">核价小webapp</a>
+            </div>
+            <!-- Collect the nav links, forms, and other content for toggling -->
+            <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+                <ul class="nav navbar-nav">
+                    <li>
+                        <a href="{{ url_for('make_order.set_order') }}">生成订单</a>
+                    </li>
+                    <!-- <li>
+                        <a href="{{ url_for('part.part_simple') }}">查看零件</a>
+                    </li> -->
+                    <li>
+                        <a href="{{ url_for('part_type.set_part_types') }}">零件种类</a>
+                    </li>
+                    <li>
+                        <a href="{{ url_for('main.set_clients') }}">设置客户</a>
+                    </li>
+                    <li class="dropdown">
+                        <a href="#" class="dropdown-toggle" data-toggle="dropdown" title="Bootstrap Related Resources">材料设置 <b class="caret"></b></a>
+                        <ul class="dropdown-menu">
+                            <li>
+                                <a href="{{ url_for('main.set_materials') }}"><i class="fa fa-list fa-fw"></i> 材料属性 </a>
+                            </li>
+                            <li>
+                                <a href="{{ url_for('main.set_material_prices') }}"><i class="fa fa-desktop fa-fw"></i> 材料报价 </a>
+                            </li>
+                            <!-- <li>
+                                <a href="{{ url_for('material_shpae.set_material_shapes') }}"><i class="fa fa-desktop fa-fw"></i> 材料形状 </a>
+                            </li> -->
+                        </ul>
+                        <li>
+                            <a href="{{ url_for('measure.set_measures') }}">测量方法</a>
+                        </li>
+                        <li class="dropdown">
+                            <a href="#" class="dropdown-toggle" data-toggle="dropdown" title="Bootstrap Related Resources"> 机床设置 <b class="caret"></b></a>
+                            <ul class="dropdown-menu">
+                                <li>
+                                    <a href="{{ url_for('main.set_machines') }}"><i class="fa fa-list fa-fw"></i> 机床种类 </a>
+                                </li>
+                                <li>
+                                    <a href="{{ url_for('main.set_machine_prices') }}"><i class="fa fa-desktop fa-fw"></i> 工缴报价 </a>
+                                </li>
+                                <!-- <li>
+                                <a href="{{ url_for('material_shpae.set_material_shapes') }}"><i class="fa fa-desktop fa-fw"></i> 材料形状 </a>
+                            </li> -->
+                            </ul>
+                        </li>
+                </ul>
+            </div>
+            <!-- /.navbar-collapse -->
+        </div>
+        <!-- /.container -->
+    </nav>
+    <!-- Page Content -->
+    <div class="container">
+        {% block body %}{% endblock %}
+        <hr>
+        <!-- Footer -->
+        <footer>
+            <div class="row">
+                <div class="col-lg-12">
+                    <p>Copyright &copy; Your Website 2014</p>
+                </div>
+            </div>
+            <!-- /.row -->
+        </footer>
+    </div>
+    <!-- /.container -->
+</body>
+
+</html>
